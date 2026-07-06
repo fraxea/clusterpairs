@@ -9,7 +9,7 @@ import {
   type DrugRank,
 } from './significance';
 import {
-  sigColor, countColor, jaccardColor, streamLabel, streamSublabel,
+  sigColor, countColor, countColorFixed, jaccardColor, streamLabel, streamSublabel,
   Legend, CutoffSlider, Chip, Spinner,
 } from './components';
 
@@ -252,7 +252,12 @@ function PathwaysTab({ manifest, data, cutoff }: { manifest: Manifest; data: Dru
     .filter(({ i }) => data.pairwise.stream.includes(i) || data.ovr.stream.includes(i)) : [];
   const [streamIdx, setStreamIdx] = useState<number>(present[0]?.i ?? 0);
   const [view, setView] = useState<'pairwise' | 'ovr_drug' | 'ovr_dmso'>('pairwise');
+  const [direction, setDirection] = useState<'up' | 'down'>('up');
   const thr = thrFromCutoff(cutoff);
+
+  // CellSpectra has no direction (sign is always 0), so the up/down toggle
+  // only makes sense for the other, signed methods.
+  const isSigned = manifest.streams[streamIdx]?.[0] !== 'cellspectra';
 
   const pairwiseRows = useMemo(() => explorerByPathway(data, streamIdx, thr), [data, streamIdx, thr]);
   const ovrCond = view === 'ovr_dmso' ? 0 : 1;
@@ -278,19 +283,35 @@ function PathwaysTab({ manifest, data, cutoff }: { manifest: Manifest; data: Dru
         </select>
       </div>
 
+      {view === 'pairwise' && isSigned && (
+        <div className="mt-3 inline-flex overflow-hidden rounded-md border border-slate-300">
+          <button type="button" onClick={() => setDirection('up')}
+            className={`px-3 py-1 text-xs font-medium ${
+              direction === 'up' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+            Up-regulated
+          </button>
+          <button type="button" onClick={() => setDirection('down')}
+            className={`border-l border-slate-300 px-3 py-1 text-xs font-medium ${
+              direction === 'down' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+            Down-regulated
+          </button>
+        </div>
+      )}
+
       <div className="mt-3"><Legend /></div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
         {view === 'pairwise'
-          ? <PairwiseGrid manifest={manifest} data={data} rows={pairwiseRows} />
+          ? <PairwiseGrid manifest={manifest} data={data} rows={pairwiseRows} direction={direction} isSigned={isSigned} />
           : <OvrGrid manifest={manifest} data={data} rows={ovrRows} cond={ovrCond} thr={thr} />}
       </div>
     </div>
   );
 }
 
-function PairwiseGrid({ manifest, data, rows }: {
+function PairwiseGrid({ manifest, data, rows, direction, isSigned }: {
   manifest: Manifest; data: DrugData; rows: ReturnType<typeof explorerByPathway>;
+  direction: 'up' | 'down'; isSigned: boolean;
 }) {
   if (rows.length === 0) return <Pad>No pathway reaches significance for this stream at the current q-value.</Pad>;
   const nRef = data.ref_clusters.length;
@@ -313,21 +334,30 @@ function PairwiseGrid({ manifest, data, rows }: {
               title={manifest.pathways[row.pathway]}>
               {manifest.pathways[row.pathway]}
             </th>
-            {row.perQuery.map((cell, qi) => (
-              <td key={qi} className="border-l border-slate-100 px-1 py-1 text-center">
-                <div className="mx-auto flex h-6 w-9 items-center justify-center rounded font-mono text-xs"
-                  style={{ background: countColor(cell.count, nRef, Math.sign(cell.sign)) }}
-                  title={`${cell.count}/${nRef} DMSO clusters significant`}>
-                  {cell.count > 0 ? cell.count : ''}
-                </div>
-              </td>
-            ))}
+            {row.perQuery.map((cell, qi) => {
+              // For signed methods, show the count for the chosen direction only
+              // (always red for up, always blue for down). For CellSpectra
+              // (unsigned), fall back to the old combined count/color.
+              const count = isSigned ? (direction === 'up' ? cell.countUp : cell.countDown) : cell.count;
+              const bg = isSigned
+                ? countColorFixed(count, nRef, direction)
+                : countColor(cell.count, nRef, Math.sign(cell.sign));
+              return (
+                <td key={qi} className="border-l border-slate-100 px-1 py-1 text-center">
+                  <div className="mx-auto flex h-6 w-9 items-center justify-center rounded font-mono text-xs"
+                    style={{ background: bg }}
+                    title={`${count}/${nRef} DMSO clusters significant${isSigned ? ` (${direction})` : ''}`}>
+                    {count > 0 ? count : ''}
+                  </div>
+                </td>
+              );
+            })}
           </tr>
         ))}
       </tbody>
       <tfoot>
         <tr><td colSpan={data.query_clusters.length + 1} className="px-3 py-2 text-xs text-slate-400">
-          Cell = number of DMSO clusters (of {nRef}) where the pathway is significant for that drug cluster.
+          Cell = number of DMSO clusters (of {nRef}) where the pathway is significant{isSigned ? ` and ${direction}-regulated` : ''} for that drug cluster.
         </td></tr>
       </tfoot>
     </table>

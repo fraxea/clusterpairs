@@ -19,10 +19,24 @@ export function sigColor(nlp: number, sign: number, thr: number): string {
 }
 
 // Color a "count of significant ref clusters" cell by fraction and direction.
+// Note: sign here is the SUM of +1/-1 across all significant ref clusters in
+// the cell, so a cell with e.g. 6 up + 6 down nets to 0 and falls into the
+// UNS (purple) branch even though it isn't CellSpectra — that's a mixed cell,
+// not an unsigned one. Use countColorFixed (below) once split by direction.
 export function countColor(count: number, nRef: number, sign: number): string {
   if (count <= 0) return NONSIG;
   const a = 0.25 + 0.7 * Math.min(1, nRef > 0 ? count / nRef : 0);
   const [r, g, b] = sign > 0 ? UP : sign < 0 ? DOWN : UNS;
+  return rgba(r, g, b, a);
+}
+
+// Color a "count of significant ref clusters" cell for a FIXED, pre-chosen
+// direction (used once up/down are split into separate tables). Always red
+// for 'up', always blue for 'down' — no sign-cancellation ambiguity.
+export function countColorFixed(count: number, nRef: number, dir: 'up' | 'down'): string {
+  if (count <= 0) return NONSIG;
+  const a = 0.25 + 0.7 * Math.min(1, nRef > 0 ? count / nRef : 0);
+  const [r, g, b] = dir === 'up' ? UP : DOWN;
   return rgba(r, g, b, a);
 }
 
@@ -35,7 +49,7 @@ export function jaccardColor(v: number): string {
 
 export function streamLabel(s: Stream): string {
   const [method, lang] = s;
-  if (method === 'cellspectra') return 'CellSpectra';
+  // if (method === 'cellspectra') return 'CellSpectra';
   const m = method === 'fgsea' ? 'fgsea' : method.toUpperCase();
   return `${m}\u00B7${lang === 'python' ? 'py' : lang}`;
 }

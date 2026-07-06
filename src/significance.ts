@@ -18,7 +18,10 @@ const PATHWAY_STRIDE = 100000; // > number of pathways; used to encode cell keys
 export interface PathwayRow {
   pathway: number;
   total: number;
-  perQuery: Array<{ count: number; sign: number }>;
+  // count/sign is the old combined tally (kept for CellSpectra, where sign is
+  // always 0 and there's no up/down to split). countUp/countDown split the
+  // significant ref clusters by direction for signed methods.
+  perQuery: Array<{ count: number; sign: number; countUp: number; countDown: number }>;
 }
 
 export function explorerByPathway(d: DrugData, streamIdx: number, thr: number): PathwayRow[] {
@@ -30,12 +33,18 @@ export function explorerByPathway(d: DrugData, streamIdx: number, thr: number): 
     const p = c.pathway[k];
     let row = rows.get(p);
     if (!row) {
-      row = { pathway: p, total: 0, perQuery: Array.from({ length: nQuery }, () => ({ count: 0, sign: 0 })) };
+      row = {
+        pathway: p,
+        total: 0,
+        perQuery: Array.from({ length: nQuery }, () => ({ count: 0, sign: 0, countUp: 0, countDown: 0 })),
+      };
       rows.set(p, row);
     }
     const cell = row.perQuery[c.query[k]];
     cell.count += 1;
     cell.sign += c.sign[k];
+    if (c.sign[k] > 0) cell.countUp += 1;
+    else if (c.sign[k] < 0) cell.countDown += 1;
     row.total += 1;
   }
   return [...rows.values()].sort((a, b) => b.total - a.total);
