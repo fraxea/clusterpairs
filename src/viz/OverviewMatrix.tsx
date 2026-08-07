@@ -1,0 +1,229 @@
+// OverviewMatrix.tsx — the full drug x pathway landscape as a virtualized
+// canvas heatmap (19k cells; only the viewport slice is ever drawn). Rows are
+// drugs, columns the 50 Hallmark pathways; a sticky header canvas keeps the
+// pathway labels while the page scrolls.
+import { useEffect, useMemo, useRef } from 'react';
+import type { Manifest, Summary } from '../types';
+import { classifyCounts, pathwayActivity } from '../significance';
+import { activityColor, dirCellColor } from '../colors';
+import { fmtPct } from '../format';
+import { useTip } from '../tooltip';
+
+export const GUTTER = 200;
+export const CELL_W = 20;
+const ROW_H = 14;
+const HEADER_H = 112;
+const INK = '#52514e';
+const MUTED = '#898781';
+
+export type AtlasMode = 'dir' | 'act';
+
+export function OverviewMatrix({ manifest, summary, mode, order, sortedBy, onColumnClick }: {
+  manifest: Manifest;
+  summary: Summary;
+  mode: AtlasMode;
+  order: number[];               // indices into summary.drugs, display order
+  sortedBy: number | null;       // pathway column currently driving the sort
+  onColumnClick: (p: number) => void;
+}) {
+  const tip = useTip();
+  const nP = manifest.pathways.length;
+  const width = GUTTER + nP * CELL_W;
+  const bodyH = order.length * ROW_H;
+
+  const nameBySlug = useMemo(
+    () => new Map(manifest.drugs.map((d) => [d.slug, d.name])),
+    [manifest.drugs],
+  );
+
+  const headerRef = useRef<HTMLCanvasElement>(null);
+  const bodyRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const hoverRowRef = useRef(-1);
+
+  // ---- header canvas (sticky) ----
+  useEffect(() => {
+    const cv = headerRef.current;
+    if (!cv) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = width * dpr; cv.height = HEADER_H * dpr;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, HEADER_H);
+    ctx.font = '10px system-ui, sans-serif';
+    for (let p = 0; p < nP; p += 1) {
+      const x = GUTTER + p * CELL_W + CELL_W / 2;
+      const name = manifest.pathways[p];
+      const label = name.length > 24 ? `${name.slice(0, 23)}…` : name;
+      ctx.save();
+      ctx.translate(x + 3, HEADER_H - 8);
+      ctx.rotate(-Math.PI / 3.2);
+      ctx.fillStyle = p === sortedBy ? '#0b0b0b' : INK;
+      if (p === sortedBy) ctx.font = '600 10px system-ui, sans-serif';
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+    ctx.fillStyle = MUTED;
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.fillText('drug ↓ · pathway →', 8, HEADER_H - 10);
+  }, [manifest.pathways, nP, width, sortedBy]);
+
+  // ---- body canvas (virtualized to the window viewport) ----
+  useEffect(() => {
+    const cv = bodyRef.current;
+    const wrap = wrapRef.current;
+    if (!cv || !wrap) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const viewH = Math.min(bodyH, Math.max(400, window.innerHeight));
+    cv.width = width * dpr; cv.height = viewH * dpr;
+    cv.style.width = `${width}px`; cv.style.height = `${viewH}px`;
+
+    let raf = 0;
+    const draw = () => {
+      const ctx = cv.getContext('2d');
+      if (!ctx) return;
+      const wrapTop = wrap.getBoundingClientRect().top + window.scrollY;
+      const offset = Math.min(Math.max(0, window.scrollY - wrapTop), Math.max(0, bodyH - viewH));
+      cv.style.transform = `translateY(${offset}px)`;
+      const rowStart = Math.max(0, Math.floor(offset / ROW_H) - 2);
+      const rowEnd = Math.min(order.length, Math.ceil((offset + viewH) / ROW_H) + 2);
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, viewH);
+      ctx.font = '10.5px system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      for (let r = rowStart; r < rowEnd; r += 1) {
+        const d = summary.drugs[order[r]];
+        const y = r * ROW_H - offset;
+        if (r === hoverRowRef.current) {
+          ctx.fillStyle = 'rgba(11,11,11,0.05)';
+          ctx.fillRect(0, y, width, ROW_H);
+        }
+        const name = nameBySlug.get(d.slug) ?? d.slug;
+        ctx.fillStyle = INK;
+        ctx.fillText(name.length > 28 ? `${name.slice(0, 27)}…` : name, 8, y + ROW_H / 2 + 0.5);
+        for (let p = 0; p < nP; p += 1) {
+          const a = pathwayActivity(d, p);
+          ctx.fillStyle = mode === 'act'
+            ? activityColor(a)
+            : dirCellColor(classifyCounts(d.up[p], d.down[p], d.uns[p], d.tested[p]));
+          ctx.fillRect(GUTTER + p * CELL_W, y + 0.5, CELL_W - 1, ROW_H - 1);
+        }
+      }
+    };
+
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [summary, order, mode, width, bodyH, nP, nameBySlug]);
+
+  // ---- interaction ----
+  // Rows are laid out in wrap-content coordinates (row * ROW_H), so hit-testing
+  // maps the pointer through the wrap element, not the (translated) canvas.
+  const cellAt = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const wrap = wrapRef.current;
+    if (!wrap) return { row: -1, p: -1 };
+    const wrapY = e.clientY - wrap.getBoundingClientRect().top;
+    const row = Math.floor(wrapY / ROW_H);
+    const p = x < GUTTER ? -1 : Math.floor((x - GUTTER) / CELL_W);
+    if (row < 0 || row >= order.length || p >= nP) return { row: -1, p: -1 };
+    return { row, p };
+  };
+
+  const onMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { row, p } = cellAt(e);
+    if (row < 0) { tip.hide(); return; }
+    if (hoverRowRef.current !== row) {
+      hoverRowRef.current = row;
+      window.dispatchEvent(new Event('scroll')); // trigger a redraw for the row highlight
+    }
+    const d = summary.drugs[order[row]];
+    const name = nameBySlug.get(d.slug) ?? d.slug;
+    if (p < 0) {
+      tip.show(e, <div className="font-medium text-stone-900">{name}</div>);
+      return;
+    }
+    const a = pathwayActivity(d, p);
+    tip.show(e, (
+      <div>
+        <div className="font-medium text-stone-900">{name}</div>
+        <div className="text-stone-500">{manifest.pathways[p]}</div>
+        <div className="mt-1 font-mono text-[11px] tabular-nums">
+          {fmtPct(a)} of {d.tested[p]} tests significant
+          <span className="text-stone-400"> · </span>
+          <span style={{ color: '#bc3a30' }}>▲{d.up[p]}</span>{' '}
+          <span style={{ color: '#2a78d6' }}>▼{d.down[p]}</span>{' '}
+          <span style={{ color: '#6c55bd' }}>◆{d.uns[p]}</span>
+        </div>
+        <div className="mt-0.5 text-[10px] text-stone-400">click → drug page</div>
+      </div>
+    ));
+  };
+
+  const onLeave = () => {
+    tip.hide();
+    hoverRowRef.current = -1;
+    window.dispatchEvent(new Event('scroll'));
+  };
+
+  const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { row } = cellAt(e);
+    if (row < 0) return;
+    const d = summary.drugs[order[row]];
+    window.location.hash = `#/drug/${encodeURIComponent(d.slug)}`;
+  };
+
+  const onHeaderMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const p = x < GUTTER ? -1 : Math.floor((x - GUTTER) / CELL_W);
+    if (p < 0 || p >= nP) { tip.hide(); return; }
+    tip.show(e, (
+      <div>
+        <div className="font-medium text-stone-900">{manifest.pathways[p]}</div>
+        <div className="mt-0.5 text-[10px] text-stone-400">click to sort drugs by this pathway</div>
+      </div>
+    ));
+  };
+  const onHeaderClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const p = x < GUTTER ? -1 : Math.floor((x - GUTTER) / CELL_W);
+    if (p >= 0 && p < nP) onColumnClick(p);
+  };
+
+  return (
+    <div style={{ width }}>
+      <div className="sticky top-[57px] z-[5] border-b border-stone-200 bg-[#f7f7f5]">
+        <canvas
+          ref={headerRef}
+          style={{ width, height: HEADER_H, cursor: 'pointer' }}
+          onMouseMove={onHeaderMove}
+          onMouseLeave={() => tip.hide()}
+          onClick={onHeaderClick}
+        />
+      </div>
+      <div ref={wrapRef} className="relative" style={{ height: bodyH }}>
+        <canvas
+          ref={bodyRef}
+          className="absolute left-0 top-0 cursor-pointer"
+          onMouseMove={onMove}
+          onMouseLeave={onLeave}
+          onClick={onClick}
+        />
+      </div>
+    </div>
+  );
+}

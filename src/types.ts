@@ -49,3 +49,36 @@ export interface DrugData {
   pairwise: PairwiseCells;
   ovr: OvrCells;
 }
+
+// ---- summary.json — emitted by scripts/build_summary.py --------------------
+// Compact cross-drug aggregates at the fixed reference cutoff (q < 0.05),
+// so global views never have to download the 240 MB of per-drug files.
+
+export interface SummaryDrug {
+  slug: string;
+  n_ref: number;
+  n_query: number;
+  records: number;            // pairwise records across all streams
+  sig: number;                // significant records at the reference cutoff
+  per_stream_sig: number[];   // -> manifest.streams
+  per_stream_tested: number[];
+  tested: number[];           // per pathway (-> manifest.pathways)
+  up: number[];               // significant, sign > 0
+  down: number[];             // significant, sign < 0
+  uns: number[];              // significant, unsigned (CellSpectra)
+}
+
+export interface Summary {
+  generated: string;
+  cutoff: number;             // the fixed reference cutoff (0.05)
+  n_pathways: number;
+  n_streams: number;
+  totals: { records: number; sig: number; cluster_pairs: number };
+  pathways: {
+    drugs_hit: number[];
+    up: number[];
+    down: number[];
+    uns: number[];
+  };
+  drugs: SummaryDrug[];
+}
