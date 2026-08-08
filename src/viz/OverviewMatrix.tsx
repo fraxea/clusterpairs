@@ -17,7 +17,6 @@ const ROW_H = 14;
 const HEADER_H = 150;
 const ANGLE = -1.134; // radians (~65°)
 const INK = '#52514e';
-const MUTED = '#898781';
 
 export type AtlasMode = 'dir' | 'act';
 
@@ -33,7 +32,11 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
 }) {
   const tip = useTip();
   const nP = manifest.pathways.length;
-  const width = GUTTER + nP * cellW + OVERHANG;
+  // The matrix itself ends at the last column; only the HEADER canvas gets the
+  // extra overhang so the final rotated labels have room — it overflows the
+  // matrix width invisibly (transparent canvas) instead of widening the layout.
+  const matrixW = GUTTER + nP * cellW;
+  const headerW = matrixW + OVERHANG;
   const bodyH = order.length * ROW_H;
 
   const nameBySlug = useMemo(
@@ -51,13 +54,12 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
     const cv = headerRef.current;
     if (!cv) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = width * dpr; cv.height = HEADER_H * dpr;
-    cv.style.width = `${width}px`; cv.style.height = `${HEADER_H}px`;
+    cv.width = headerW * dpr; cv.height = HEADER_H * dpr;
+    cv.style.width = `${headerW}px`; cv.style.height = `${HEADER_H}px`;
     const ctx = cv.getContext('2d');
     if (!ctx) return;
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, HEADER_H);
-    ctx.font = '10px system-ui, sans-serif';
+    ctx.clearRect(0, 0, headerW, HEADER_H);
     for (let c = 0; c < nP; c += 1) {
       const p = colOrder[c];
       const x = GUTTER + c * cellW + cellW / 2;
@@ -71,10 +73,12 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
       ctx.fillText(label, 0, 0);
       ctx.restore();
     }
-    ctx.fillStyle = MUTED;
-    ctx.font = '10px system-ui, sans-serif';
-    ctx.fillText('drug ↓ · pathway →', 8, HEADER_H - 10);
-  }, [manifest.pathways, nP, width, cellW, colOrder, sortedBy]);
+    // axis caption, bottom-left corner of the label band
+    ctx.fillStyle = '#3d3c38';
+    ctx.font = '500 13px system-ui, sans-serif';
+    ctx.fillText('drugs ↓', 8, HEADER_H - 26);
+    ctx.fillText('pathways →', 8, HEADER_H - 9);
+  }, [manifest.pathways, nP, headerW, cellW, colOrder, sortedBy]);
 
   // ---- body canvas (virtualized to the window viewport) ----
   useEffect(() => {
@@ -87,8 +91,8 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
     let viewH = 0;
     const size = () => {
       viewH = Math.min(bodyH, Math.max(400, window.innerHeight));
-      cv.width = width * dpr; cv.height = viewH * dpr;
-      cv.style.width = `${width}px`; cv.style.height = `${viewH}px`;
+      cv.width = matrixW * dpr; cv.height = viewH * dpr;
+      cv.style.width = `${matrixW}px`; cv.style.height = `${viewH}px`;
     };
     size();
 
@@ -103,7 +107,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
       const rowEnd = Math.min(order.length, Math.ceil((offset + viewH) / ROW_H) + 2);
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, viewH);
+      ctx.clearRect(0, 0, matrixW, viewH);
       ctx.font = '10.5px system-ui, sans-serif';
       ctx.textBaseline = 'middle';
       for (let r = rowStart; r < rowEnd; r += 1) {
@@ -111,7 +115,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
         const y = r * ROW_H - offset;
         if (r === hoverRowRef.current) {
           ctx.fillStyle = 'rgba(11,11,11,0.05)';
-          ctx.fillRect(0, y, width, ROW_H);
+          ctx.fillRect(0, y, matrixW, ROW_H);
         }
         const name = nameBySlug.get(d.slug) ?? d.slug;
         ctx.fillStyle = INK;
@@ -140,7 +144,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
-  }, [summary, order, colOrder, mode, width, cellW, bodyH, nP, nameBySlug]);
+  }, [summary, order, colOrder, mode, matrixW, cellW, bodyH, nP, nameBySlug]);
 
   // ---- interaction ----
   // Rows are laid out in wrap-content coordinates (row * ROW_H), so hit-testing
@@ -223,10 +227,13 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
   };
 
   return (
-    <div style={{ width }}>
-      <div className="sticky top-[57px] z-[5] border-b border-stone-200 bg-[#f7f7f5]">
+    // The layout is exactly as wide as the matrix; the header canvas alone
+    // overflows to the right so the last rotated labels have room.
+    <div style={{ width: matrixW }}>
+      <div className="sticky top-[57px] z-[5] border-b border-stone-200 bg-[#f7f7f5]" style={{ width: matrixW }}>
         <canvas
           ref={headerRef}
+          className="max-w-none"
           style={{ cursor: 'pointer' }}
           onMouseMove={onHeaderMove}
           onMouseLeave={() => tip.hide()}

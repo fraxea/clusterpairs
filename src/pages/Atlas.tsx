@@ -15,7 +15,7 @@ type SortKind = { kind: 'activity' } | { kind: 'name' } | { kind: 'cluster' } | 
 
 function useCellW(nP: number): number {
   const compute = () => {
-    const avail = Math.min(window.innerWidth, 1700) - 40 /* main padding */ - 26 /* card */ - GUTTER - OVERHANG;
+    const avail = Math.min(window.innerWidth, 1700) - 40 /* main padding */ - GUTTER - OVERHANG;
     return Math.max(12, Math.min(22, Math.floor(avail / nP)));
   };
   const [w, setW] = useState(compute);
@@ -129,10 +129,10 @@ export function Atlas({ manifest, summary }: { manifest: Manifest; summary: Summ
         )}
       </div>
 
-      {/* w-fit: the border hugs the matrix (which now sizes itself to the
-          viewport); if the window is narrower than the 12px-cell minimum the
-          page scrolls horizontally rather than clipping. */}
-      <div className="mt-4 w-fit rounded-lg border border-stone-200 bg-white p-3">
+      {/* No card around the matrix: the sticky label band shares the page
+          background, so nothing reads as an overflowing bar; the matrix sizes
+          itself to the viewport and only very narrow windows scroll. */}
+      <div className="mt-4 w-fit">
         <OverviewMatrix
           manifest={manifest} summary={summary} mode={mode} order={order}
           colOrder={colOrder} cellW={cellW}
