@@ -140,3 +140,15 @@ export function dirCellColor(cell: DirCell): string {
 /** Direction-free activity cell. */
 export const activityColor = (a: number): string =>
   a <= 0 ? NONSIG : ramp('ink', activityT(a));
+
+// ------------------------------------------------------ categorical slots ----
+// Fixed 8-hue order (validated palette; identity job only — e.g. network
+// communities). Communities beyond the 8th fold into OTHER_CAT gray, and
+// community identity is never color-alone (legend chips carry labels).
+export const CATEGORICAL = [
+  '#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948',
+] as const;
+export const OTHER_CAT = '#a9a69c';
+
+export const communityColor = (c: number): string =>
+  c >= 0 && c < CATEGORICAL.length ? CATEGORICAL[c] : OTHER_CAT;

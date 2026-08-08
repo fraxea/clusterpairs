@@ -12,6 +12,7 @@ import { Atlas } from './pages/Atlas';
 import { PathwaysIndex, PathwayPage } from './pages/Pathways';
 import { DrugPage } from './pages/DrugPage';
 import { Rank } from './pages/Rank';
+import { NetworkPage } from './pages/Network';
 
 type Route =
   | { type: 'home' }
@@ -19,6 +20,7 @@ type Route =
   | { type: 'pathways' }
   | { type: 'pathway'; slug: string }
   | { type: 'drug'; slug: string }
+  | { type: 'network' }
   | { type: 'rank' };
 
 function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
@@ -29,6 +31,7 @@ function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
   const route: Route = (() => {
     if (path === 'atlas') return { type: 'atlas' } as const;
     if (path === 'pathways') return { type: 'pathways' } as const;
+    if (path === 'network' || path === 'networks') return { type: 'network' } as const;
     if (path === 'rank' || path === 'search') return { type: 'rank' } as const;
     if (path.startsWith('pathway/')) {
       const slug = decodeURIComponent(path.slice('pathway/'.length));
@@ -70,6 +73,7 @@ function Shell({ route, cutoff, setCutoff, children }: {
               <NavLink href="#/" active={route.type === 'home' || route.type === 'drug'}>Drugs</NavLink>
               <NavLink href="#/atlas" active={route.type === 'atlas'}>Landscape</NavLink>
               <NavLink href="#/pathways" active={route.type === 'pathways' || route.type === 'pathway'}>Pathways</NavLink>
+              <NavLink href="#/network" active={route.type === 'network'}>Networks</NavLink>
               <NavLink href="#/rank" active={route.type === 'rank'}>Rank</NavLink>
             </nav>
           </div>
@@ -139,7 +143,8 @@ export default function App() {
       : route.type === 'pathway' ? route.slug.replace(/-/g, ' ')
         : route.type === 'atlas' ? 'landscape'
           : route.type === 'pathways' ? 'pathways'
-            : route.type === 'rank' ? 'rank' : null;
+            : route.type === 'network' ? 'networks'
+              : route.type === 'rank' ? 'rank' : null;
     document.title = name ? `${name} · ${base}` : base;
   }, [route, manifest]);
 
@@ -180,6 +185,7 @@ export default function App() {
         {route.type === 'atlas' ? needsSummary(summary && <Atlas manifest={manifest} summary={summary} />)
           : route.type === 'pathways' ? needsSummary(summary && <PathwaysIndex manifest={manifest} summary={summary} />)
             : route.type === 'pathway' ? needsSummary(summary && <PathwayPage manifest={manifest} summary={summary} slug={route.slug} />)
+              : route.type === 'network' ? needsSummary(summary && <NetworkPage manifest={manifest} summary={summary} />)
               : route.type === 'drug' ? (
                 <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} params={params} />
               )

@@ -11,8 +11,11 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   per drug (red = up, blue = down, violet = unsigned CellSpectra, ink = mixed),
   sortable by activity / selectivity / name. `/` focuses the filter.
 - **Landscape** (`#/atlas`) — the full 379 × 50 matrix as a virtualized canvas
-  heatmap. Click a column label to sort by that pathway, click a row to open
-  the drug. Direction and activity encodings.
+  heatmap that sizes itself to the viewport. Click a column label to sort by
+  that pathway, click a row to open the drug. Direction and activity encodings,
+  plus seriation: "Clustered" row order (first principal component of the drug
+  fingerprints) and a "cluster pathways" column order (average-linkage on
+  1 − Pearson r) that surface the block structure.
 - **Pathways** (`#/pathways`, `#/pathway/<slug>`) — per-pathway drug ranking as
   diverging (tornado) bars: fraction of a drug's tests calling the pathway up
   vs down, with unsigned counts alongside. Links out to MSigDB.
@@ -24,6 +27,12 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   *Method agreement* (pathway × stream grid for one pair + lower-triangle
   Jaccard concordance with same-method py↔R pairs outlined).
   Tab/stream/pair state is mirrored into the URL for shareable links.
+- **Networks** (`#/network`) — graph-theory views, hand-rolled (no deps):
+  a drug similarity network (each drug → its 6 nearest cosine neighbors over a
+  150-dim up/down/unsigned fingerprint; label-propagation communities with
+  differential theme labels; force-directed layout) and a pathway co-response
+  network (edges = Pearson correlation of activity across drugs → co-regulated
+  modules). All math in `src/analysis.ts`.
 - **Rank** (`#/rank`) — pick pathways, rank drugs instantly from the summary;
   optional exact re-rank at the live cutoff (downloads all drug files).
 

@@ -69,6 +69,47 @@ export function PathwaysIndex({ manifest, summary }: { manifest: Manifest; summa
   );
 }
 
+// ------------------------------------------------------- distribution ----
+/** How the whole library responds to one pathway — drug count per activity bin. */
+function ActivityHistogram({ values, total }: { values: number[]; total: number }) {
+  const tip = useTip();
+  const BINS = 30;
+  const hi = Math.max(0.2, Math.ceil(Math.max(0, ...values) * 10) / 10);
+  const counts = new Array<number>(BINS).fill(0);
+  for (const v of values) counts[Math.min(BINS - 1, Math.floor((v / hi) * BINS))] += 1;
+  const peak = Math.max(1, ...counts);
+  const W = 600; const H = 84;
+  const bw = W / BINS;
+  return (
+    <div className="mt-3 rounded-lg border border-stone-200 bg-white px-4 py-3">
+      <div className="text-xs text-stone-500">
+        Distribution of drug activity — {values.length} of {total} drugs with ≥1 significant test
+      </div>
+      <svg viewBox={`0 0 ${W} ${H + 16}`} className="mt-2 block w-full max-w-2xl">
+        {counts.map((n, i) => {
+          const h = (n / peak) * (H - 4);
+          return (
+            <rect
+              key={i}
+              x={i * bw + 1} y={H - h} width={bw - 2} height={Math.max(n > 0 ? 1.5 : 0, h)}
+              rx={1.5} fill="#514f49"
+              onMouseMove={(e) => tip.show(e, (
+                <div className="font-mono text-[11px] tabular-nums">
+                  {n} drugs at {Math.round((i / BINS) * hi * 100)}–{Math.round(((i + 1) / BINS) * hi * 100)}% activity
+                </div>
+              ))}
+              onMouseLeave={tip.hide}
+            />
+          );
+        })}
+        <line x1={0} y1={H} x2={W} y2={H} stroke="#c3c2b7" strokeWidth={1} />
+        <text x={0} y={H + 12} fontSize={9} fill="#898781">0</text>
+        <text x={W} y={H + 12} fontSize={9} fill="#898781" textAnchor="end">{Math.round(hi * 100)}%</text>
+      </svg>
+    </div>
+  );
+}
+
 // ----------------------------------------------------------------- detail ----
 type PwSort = 'total' | 'up' | 'down' | 'mixed';
 
@@ -142,8 +183,14 @@ export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; s
         <StatTile label="Strong responders" value={`${active}`} sub={`≥${Math.round(ACTIVE_MIN * 100)}% of tests significant`} />
         <StatTile label="Up calls" value={fmtCompact(summary.pathways.up[p])} sub="across all drugs and streams" />
         <StatTile label="Down calls" value={fmtCompact(summary.pathways.down[p])} sub="across all drugs and streams" />
-        <StatTile label="Unsigned calls" value={fmtCompact(summary.pathways.uns[p])} sub="CellSpectra (no direction)" />
+        <StatTile label="Unsigned calls" value={fmtCompact(summary.pathways.uns[p])} sub="unsigned methods (ORA · CellSpectra)" />
       </div>
+
+      <ActivityHistogram
+        values={summary.drugs.map((d) => pathwayActivity(d, p)).filter((a) => a > 0)}
+        total={summary.drugs.length}
+      />
+
 
       {/* axis header */}
       <div className="mt-6 grid grid-cols-[13rem_1fr_7rem] items-center gap-x-4 px-1">
