@@ -50,8 +50,16 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   generic-toxicity matches are visible. Validated: cardiac glycosides,
   mTOR/MEK/HDAC classes self-assemble with zero metadata, and an inflammatory
   query returns corticosteroids as top reversers.
+- **Consensus** (`#/consensus`) — the generic perturbation response (cf. the
+  "DE prototype", Crow et al. PNAS 2019): the consensus signature with 95% CIs
+  and sign-consistency tests (exact binomial + BH), per-drug genericness
+  (leave-one-out correlation, ~24% of matrix energy lies on the shared axis),
+  and the residual layer — the drug × pathway effects (in σ) the consensus
+  cannot explain.
 - **Rank** (`#/rank`) — pick pathways, rank drugs instantly from the summary;
   optional exact re-rank at the live cutoff (downloads all drug files).
+- **Guide** (`#/guide`) — how to read every view, dataset semantics, the color
+  language, and a placeholder for the future manuscript link.
 
 The global **q-value slider** re-thresholds per-drug views live. Cross-drug
 views (home strips, landscape, pathway pages, instant rank) use the fixed
