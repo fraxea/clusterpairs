@@ -127,6 +127,13 @@ export function DrugPage({ manifest, summary, slug, cutoff, params }: {
               title="Fraction of all pathway tests significant at q < 0.05">
               activity {fmtPct(summaryRow.sig / Math.max(1, summaryRow.records))}
             </span>
+            <a
+              href={`#/connect?q=${encodeURIComponent(slug)}`}
+              className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-emerald-700 hover:border-stone-400 hover:text-emerald-800"
+              title="Find drugs that mimic or reverse this signature"
+            >
+              connectivity →
+            </a>
             {topUp.map((p) => (
               <a key={p} href={`#/pathway/${pathwaySlug(manifest.pathways[p])}`}
                 className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-stone-600 hover:border-stone-400">

@@ -27,12 +27,6 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   *Method agreement* (pathway × stream grid for one pair + lower-triangle
   Jaccard concordance with same-method py↔R pairs outlined).
   Tab/stream/pair state is mirrored into the URL for shareable links.
-- **Networks** (`#/network`) — graph-theory views, hand-rolled (no deps):
-  a drug similarity network (each drug → its 6 nearest cosine neighbors over a
-  150-dim up/down/unsigned fingerprint; label-propagation communities with
-  differential theme labels; force-directed layout) and a pathway co-response
-  network (edges = Pearson correlation of activity across drugs → co-regulated
-  modules). All math in `src/analysis.ts`.
 - **Correlation** (`#/correlate`) — does pathway A move with pathway B across
   the library? One point per drug, OLS fit with 95% confidence band, and
   hand-rolled inference: Pearson & Spearman with exact t-based p-values, slope
@@ -46,6 +40,16 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   λ-min / λ-1SE rules, verified against scikit-learn): redundant predictors are
   clipped to exactly zero, and the surviving standardized coefficients are
   shown as a diverging bar chart with the CV error curve and a λ slider.
+- **Connectivity** (`#/connect`) — CMap-style signature matching (Lamb 2006;
+  Subramanian 2017's τ): query a drug's 50-dim net-direction signature or a
+  custom up/down pathway set against the whole atlas. Positive cosine =
+  mimicker, negative = reverser (the repurposing read-out). τ normalizes each
+  hit against that drug's own background connectivity (|τ| ≥ 95 recommended);
+  permutation p + BH-FDR in tooltips; every cosine is decomposed into the
+  generic proliferation-stress axis (atlas PC1) vs pathway-specific signal so
+  generic-toxicity matches are visible. Validated: cardiac glycosides,
+  mTOR/MEK/HDAC classes self-assemble with zero metadata, and an inflammatory
+  query returns corticosteroids as top reversers.
 - **Rank** (`#/rank`) — pick pathways, rank drugs instantly from the summary;
   optional exact re-rank at the live cutoff (downloads all drug files).
 

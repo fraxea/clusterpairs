@@ -1,8 +1,8 @@
-// analysis.ts — hand-rolled graph/matrix analysis over summary.json.
-// Pure functions, no React, no dependencies: drug fingerprints, kNN similarity
-// graphs, label-propagation communities, a force-directed layout, pathway
-// correlation, and seriation (PC1 ordering + average-linkage clustering).
-// Everything is seeded/deterministic so layouts are reproducible.
+// analysis.ts — hand-rolled matrix analysis and statistics over summary.json.
+// Pure functions, no React, no dependencies: drug fingerprints, pathway
+// correlation, seriation (PC1 ordering + average-linkage clustering), exact
+// inference (incomplete beta → t / sign tests), OLS, and the lasso path.
+// Everything is seeded/deterministic so results are reproducible.
 
 import type { SummaryDrug } from './types';
 
@@ -39,251 +39,6 @@ export function drugFingerprints(drugs: SummaryDrug[]): Float64Array[] {
   });
 }
 
-/**
- * Center vectors on the per-dimension library mean. Raw activity fingerprints
- * are non-negative and dominated by the shared unsigned channel (~90% of the
- * norm), which compresses all cosines into [0.8, 1]; centering spreads the
- * distribution so similarity thresholds and edge weights become meaningful.
- */
-export function centerVectors(vecs: Float64Array[]): Float64Array[] {
-  const n = vecs.length;
-  if (n === 0) return [];
-  const d = vecs[0].length;
-  const mean = new Float64Array(d);
-  for (const v of vecs) for (let i = 0; i < d; i += 1) mean[i] += v[i];
-  for (let i = 0; i < d; i += 1) mean[i] /= n;
-  return vecs.map((v) => {
-    const c = new Float64Array(d);
-    for (let i = 0; i < d; i += 1) c[i] = v[i] - mean[i];
-    return c;
-  });
-}
-
-export function cosine(a: Float64Array, b: Float64Array): number {
-  let dot = 0; let na = 0; let nb = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i];
-  }
-  const d = Math.sqrt(na) * Math.sqrt(nb);
-  return d === 0 ? 0 : dot / d;
-}
-
-// ------------------------------------------------------------- kNN graph ----
-export interface Edge { a: number; b: number; w: number }
-
-/** Undirected union of each node's top-k cosine neighbors above minSim. */
-export function knnEdges(vecs: Float64Array[], k: number, minSim: number): Edge[] {
-  const n = vecs.length;
-  const sim = (i: number, j: number) => cosine(vecs[i], vecs[j]);
-  const seen = new Map<number, Edge>();
-  for (let i = 0; i < n; i += 1) {
-    const cand: Array<{ j: number; w: number }> = [];
-    for (let j = 0; j < n; j += 1) {
-      if (j === i) continue;
-      const w = sim(i, j);
-      if (w >= minSim) cand.push({ j, w });
-    }
-    cand.sort((x, y) => y.w - x.w);
-    for (const { j, w } of cand.slice(0, k)) {
-      const key = i < j ? i * n + j : j * n + i;
-      const prev = seen.get(key);
-      if (!prev || w > prev.w) seen.set(key, { a: Math.min(i, j), b: Math.max(i, j), w });
-    }
-  }
-  return [...seen.values()];
-}
-
-// ---------------------------------------------- label-propagation groups ----
-/**
- * Weighted label propagation on an undirected graph. Labels are relabeled by
- * community size (0 = largest). Deterministic via seeded iteration order.
- */
-export function communities(n: number, edges: Edge[], seed = 42): { label: number[]; count: number } {
-  const adj: Array<Array<{ j: number; w: number }>> = Array.from({ length: n }, () => []);
-  for (const e of edges) {
-    adj[e.a].push({ j: e.b, w: e.w });
-    adj[e.b].push({ j: e.a, w: e.w });
-  }
-  const label = Array.from({ length: n }, (_, i) => i);
-  const order = Array.from({ length: n }, (_, i) => i);
-  const rand = rng(seed);
-  for (let iter = 0; iter < 30; iter += 1) {
-    // Fisher–Yates with the seeded rng
-    for (let i = n - 1; i > 0; i -= 1) {
-      const j = Math.floor(rand() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
-    }
-    let changed = 0;
-    for (const i of order) {
-      if (adj[i].length === 0) continue;
-      const votes = new Map<number, number>();
-      for (const { j, w } of adj[i]) votes.set(label[j], (votes.get(label[j]) ?? 0) + w);
-      let best = label[i]; let bestW = -1;
-      votes.forEach((w, l) => {
-        if (w > bestW || (w === bestW && l < best)) { best = l; bestW = w; }
-      });
-      if (best !== label[i]) { label[i] = best; changed += 1; }
-    }
-    if (changed === 0) break;
-  }
-  // relabel by size desc (stable for ties)
-  const sizes = new Map<number, number>();
-  for (const l of label) sizes.set(l, (sizes.get(l) ?? 0) + 1);
-  const ranked = [...sizes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  const remap = new Map(ranked.map(([l], idx) => [l, idx]));
-  return { label: label.map((l) => remap.get(l) ?? 0), count: ranked.length };
-}
-
-/**
- * Consensus communities: a single label-propagation run is a seed artifact
- * (ARI ≈ 0.6 across seeds on this data), so run it `runs` times and keep only
- * co-assignments that agree in ≥ minAgree of runs. The result is the
- * connected components of the stable edges — deterministic and conservative.
- */
-export function consensusCommunities(
-  n: number, edges: Edge[], runs = 24, minAgree = 0.7,
-): { label: number[]; count: number } {
-  const agree = new Array<number>(edges.length).fill(0);
-  for (let r = 0; r < runs; r += 1) {
-    const { label } = communities(n, edges, 1000 + r * 7919);
-    for (let e = 0; e < edges.length; e += 1) {
-      if (label[edges[e].a] === label[edges[e].b]) agree[e] += 1;
-    }
-  }
-  // union-find over the stable edges
-  const parent = Array.from({ length: n }, (_, i) => i);
-  const find = (x: number): number => {
-    let r = x;
-    while (parent[r] !== r) r = parent[r];
-    while (parent[x] !== r) { const nx = parent[x]; parent[x] = r; x = nx; }
-    return r;
-  };
-  for (let e = 0; e < edges.length; e += 1) {
-    if (agree[e] / runs >= minAgree) {
-      const a = find(edges[e].a); const b = find(edges[e].b);
-      if (a !== b) parent[a] = b;
-    }
-  }
-  const label = Array.from({ length: n }, (_, i) => find(i));
-  const sizes = new Map<number, number>();
-  for (const l of label) sizes.set(l, (sizes.get(l) ?? 0) + 1);
-  const ranked = [...sizes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  const remap = new Map(ranked.map(([l], idx) => [l, idx]));
-  return { label: label.map((l) => remap.get(l) ?? 0), count: ranked.length };
-}
-
-/**
- * Per-community DIFFERENTIAL themes: the pathway signals where the community
- * mean deviates most from the whole-library mean. (Absolute tops are useless
- * here — every drug in a tumor-line screen hits the proliferation program, so
- * all communities would read "Mitotic Spindle".)
- */
-export interface CommunityTheme {
-  size: number;
-  top: Array<{ pathway: number; kind: 'up' | 'down' | 'uns'; delta: number }>;
-}
-export function communityThemes(
-  drugs: SummaryDrug[], label: number[], count: number, topN = 2,
-): CommunityTheme[] {
-  const nP = drugs[0]?.tested.length ?? 0;
-  const meanOf = (members: SummaryDrug[]): Float64Array => {
-    const m = new Float64Array(3 * nP);
-    for (const d of members) {
-      for (let p = 0; p < nP; p += 1) {
-        const t = d.tested[p];
-        if (t > 0) {
-          m[p] += d.up[p] / t;
-          m[nP + p] += d.down[p] / t;
-          m[2 * nP + p] += d.uns[p] / t;
-        }
-      }
-    }
-    if (members.length > 0) for (let i = 0; i < m.length; i += 1) m[i] /= members.length;
-    return m;
-  };
-  const global = meanOf(drugs);
-  const out: CommunityTheme[] = [];
-  for (let c = 0; c < count; c += 1) {
-    const members = drugs.filter((_, i) => label[i] === c);
-    const mean = meanOf(members);
-    const scored = Array.from({ length: nP }, (_, p) => {
-      const dUp = mean[p] - global[p];
-      const dDown = mean[nP + p] - global[nP + p];
-      const dUns = mean[2 * nP + p] - global[2 * nP + p];
-      const best = Math.max(dUp, dDown, dUns);
-      const kind: 'up' | 'down' | 'uns' = best === dUp ? 'up' : best === dDown ? 'down' : 'uns';
-      return { pathway: p, kind, delta: best };
-    }).sort((a, b) => b.delta - a.delta);
-    out.push({ size: members.length, top: scored.slice(0, topN) });
-  }
-  return out;
-}
-
-// ----------------------------------------------------------- force layout ----
-export interface ForceSim {
-  x: Float64Array; y: Float64Array;
-  /** advance the simulation; returns remaining alpha (0 = settled) */
-  tick(iters: number): number;
-}
-
-/**
- * Basic force-directed layout: pairwise repulsion, springs on edges (rest
- * length shrinks with similarity), weak centering, velocity damping with
- * alpha decay. Positions live in an arbitrary space — normalize when drawing.
- */
-export function createForceSim(n: number, edges: Edge[], seed = 7): ForceSim {
-  const rand = rng(seed);
-  const x = new Float64Array(n); const y = new Float64Array(n);
-  const vx = new Float64Array(n); const vy = new Float64Array(n);
-  const R = Math.sqrt(n) * 12;
-  for (let i = 0; i < n; i += 1) {
-    const a = 2 * Math.PI * rand(); const r = R * Math.sqrt(rand());
-    x[i] = r * Math.cos(a); y[i] = r * Math.sin(a);
-  }
-  const REPULSE = 220;
-  const SPRING = 0.06;
-  const CENTER = 0.012;
-  let alpha = 1;
-
-  const step = () => {
-    for (let i = 0; i < n; i += 1) {
-      for (let j = i + 1; j < n; j += 1) {
-        let dx = x[i] - x[j]; let dy = y[i] - y[j];
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 0.01) { dx = (rand() - 0.5); dy = (rand() - 0.5); d2 = dx * dx + dy * dy; }
-        // clamp the near field: an unbounded 1/d² impulse from one close pair
-        // can fling a node across the layout and pin the fit-to-bounds scale
-        d2 = Math.max(d2, 25);
-        const f = (REPULSE * alpha) / d2;
-        const d = Math.sqrt(d2);
-        const fx = (dx / d) * f; const fy = (dy / d) * f;
-        vx[i] += fx; vy[i] += fy; vx[j] -= fx; vy[j] -= fy;
-      }
-    }
-    for (const e of edges) {
-      const dx = x[e.b] - x[e.a]; const dy = y[e.b] - y[e.a];
-      const d = Math.max(0.1, Math.sqrt(dx * dx + dy * dy));
-      const rest = 26 * (1.35 - e.w); // similar nodes pull closer
-      const f = SPRING * alpha * (d - rest) * Math.min(1, e.w + 0.3);
-      vx[e.a] += (dx / d) * f; vy[e.a] += (dy / d) * f;
-      vx[e.b] -= (dx / d) * f; vy[e.b] -= (dy / d) * f;
-    }
-    for (let i = 0; i < n; i += 1) {
-      vx[i] -= x[i] * CENTER * alpha; vy[i] -= y[i] * CENTER * alpha;
-      vx[i] *= 0.6; vy[i] *= 0.6;
-      x[i] += vx[i]; y[i] += vy[i];
-    }
-    alpha *= 0.99;
-  };
-
-  return {
-    x, y,
-    tick(iters: number) {
-      for (let k = 0; k < iters && alpha > 0.003; k += 1) step();
-      return alpha <= 0.003 ? 0 : alpha;
-    },
-  };
-}
 
 // ---------------------------------------------------- pathway correlation ----
 /** [pathway][drug] activity fractions at the reference cutoff. */
@@ -308,29 +63,6 @@ export function pearson(a: number[], b: number[]): number {
   return d === 0 ? 0 : cov / d;
 }
 
-/** Positive-correlation kNN edges between rows of `mat` (co-response). */
-export function corrEdges(mat: number[][], k: number, minR: number): Edge[] {
-  const n = mat.length;
-  const corr: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(0));
-  for (let i = 0; i < n; i += 1) {
-    for (let j = i + 1; j < n; j += 1) {
-      const r = pearson(mat[i], mat[j]);
-      corr[i][j] = r; corr[j][i] = r;
-    }
-  }
-  const seen = new Map<number, Edge>();
-  for (let i = 0; i < n; i += 1) {
-    const cand = Array.from({ length: n }, (_, j) => ({ j, w: corr[i][j] }))
-      .filter(({ j, w }) => j !== i && w >= minR)
-      .sort((x, y) => y.w - x.w)
-      .slice(0, k);
-    for (const { j, w } of cand) {
-      const key = i < j ? i * n + j : j * n + i;
-      if (!seen.has(key)) seen.set(key, { a: Math.min(i, j), b: Math.max(i, j), w });
-    }
-  }
-  return [...seen.values()];
-}
 
 // --------------------------------------------------------------- ordering ----
 /** Scores along the first principal component (power iteration). */
@@ -727,4 +459,167 @@ export function lassoPath(
     if (cvMse[k] <= cvMse[iMin] + cvSe[iMin]) { i1se = k; break; }
   }
   return { lambdas, betas, r2, nnz, cvMse, cvSe, iMin, i1se, yVar };
+}
+
+// ============================ connectivity ==================================
+// CMap-style signature matching (Lamb 2006; Subramanian 2017's tau): a query
+// signature (a drug's 50-dim net-direction vector, or a hand-built ±1 pathway
+// set) is scored against every atlas drug by cosine. Positive = mimicker,
+// negative = reverser. tau normalizes against each target's own background
+// connectivity distribution; permutation p-values + BH-FDR support it.
+
+export function cosine(a: Float64Array | number[], b: Float64Array | number[]): number {
+  let dot = 0; let na = 0; let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i];
+  }
+  const d = Math.sqrt(na) * Math.sqrt(nb);
+  return d === 0 ? 0 : dot / d;
+}
+
+/** 50-dim net-direction vector per drug: (up − down) / tested. */
+export function netVectors(drugs: SummaryDrug[]): Float64Array[] {
+  return drugs.map((d) => {
+    const n = d.tested.length;
+    const v = new Float64Array(n);
+    for (let p = 0; p < n; p += 1) if (d.tested[p] > 0) v[p] = (d.up[p] - d.down[p]) / d.tested[p];
+    return v;
+  });
+}
+
+/** First principal axis (unit vector) of the drug × pathway matrix, by power iteration. */
+export function pc1Axis(vecs: Float64Array[]): Float64Array {
+  const n = vecs.length;
+  const p = vecs[0]?.length ?? 0;
+  const mean = new Float64Array(p);
+  for (const v of vecs) for (let j = 0; j < p; j += 1) mean[j] += v[j] / n;
+  const C = vecs.map((v) => {
+    const c = new Float64Array(p);
+    for (let j = 0; j < p; j += 1) c[j] = v[j] - mean[j];
+    return c;
+  });
+  let u = new Float64Array(p).fill(1 / Math.sqrt(p));
+  for (let iter = 0; iter < 120; iter += 1) {
+    const w = new Float64Array(p);
+    for (const c of C) {
+      let dot = 0;
+      for (let j = 0; j < p; j += 1) dot += c[j] * u[j];
+      for (let j = 0; j < p; j += 1) w[j] += dot * c[j];
+    }
+    let norm = 0;
+    for (let j = 0; j < p; j += 1) norm += w[j] * w[j];
+    norm = Math.sqrt(norm) || 1;
+    for (let j = 0; j < p; j += 1) w[j] /= norm;
+    u = w;
+  }
+  return u;
+}
+
+export interface ConnectivityHit {
+  target: number;      // index into drugs
+  cos: number;
+  tau: number;         // signed percentile vs the target's atlas background
+  p: number;           // two-sided permutation p
+  fdr: number;         // BH across all targets
+  generic: number;     // PC1-aligned share of the cosine
+  specific: number;    // residual share (generic + specific = cos)
+  contrib: Array<{ pathway: number; c: number }>; // top |per-pathway contributions|
+}
+
+/**
+ * Background |cosine| distributions per target (each vs all other atlas
+ * drugs), sorted ascending — the reference set for tau. O(n²·p), ~4M mults.
+ */
+export function connectivityBackground(vecs: Float64Array[]): number[][] {
+  const n = vecs.length;
+  const bg: number[][] = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i += 1) {
+    for (let j = i + 1; j < n; j += 1) {
+      const c = Math.abs(cosine(vecs[i], vecs[j]));
+      bg[i].push(c); bg[j].push(c);
+    }
+  }
+  for (const b of bg) b.sort((a, x) => a - x);
+  return bg;
+}
+
+const percentileOf = (sorted: number[], v: number): number => {
+  let lo = 0; let hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < v) lo = mid + 1; else hi = mid; }
+  return sorted.length === 0 ? 0 : (100 * lo) / sorted.length;
+};
+
+/**
+ * Score a query signature against every atlas drug. `exclude` drops the query
+ * drug itself. nPerm seeded permutations of the query's coordinates give a
+ * two-sided p per target; BH-FDR across targets.
+ */
+export function connectivity(
+  vecs: Float64Array[], query: Float64Array | number[], bg: number[][],
+  pc1: Float64Array, exclude = -1, nPerm = 1000, seed = 2024,
+): ConnectivityHit[] {
+  const n = vecs.length;
+  const p = query.length;
+  const obs = new Array<number>(n).fill(0);
+  for (let i = 0; i < n; i += 1) if (i !== exclude) obs[i] = cosine(query, vecs[i]);
+
+  // permutation null: shuffle the query's coordinates (seeded Fisher–Yates)
+  const rand = rng(seed);
+  const perm = Array.from({ length: p }, (_, j) => j);
+  const exceed = new Array<number>(n).fill(0);
+  const qp = new Float64Array(p);
+  for (let r = 0; r < nPerm; r += 1) {
+    for (let i = p - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [perm[i], perm[j]] = [perm[j], perm[i]];
+    }
+    for (let j = 0; j < p; j += 1) qp[j] = query[perm[j]] as number;
+    for (let i = 0; i < n; i += 1) {
+      if (i === exclude) continue;
+      if (Math.abs(cosine(qp, vecs[i])) >= Math.abs(obs[i])) exceed[i] += 1;
+    }
+  }
+
+  // exact cosine split along the atlas PC1 axis: cos = generic + specific
+  const proj = (v: Float64Array | number[]): number => {
+    let d = 0;
+    for (let j = 0; j < p; j += 1) d += (v[j] as number) * pc1[j];
+    return d;
+  };
+  const nrm = (v: Float64Array | number[]): number => {
+    let s = 0;
+    for (let j = 0; j < p; j += 1) s += (v[j] as number) ** 2;
+    return Math.sqrt(s);
+  };
+  const qProj = proj(query); const qNorm = nrm(query);
+
+  const hits: ConnectivityHit[] = [];
+  for (let i = 0; i < n; i += 1) {
+    if (i === exclude) continue;
+    const tProj = proj(vecs[i]); const tNorm = nrm(vecs[i]);
+    const denom = (qNorm * tNorm) || 1;
+    const generic = (qProj * tProj) / denom;
+    const contrib = [...vecs[i].keys()]
+      .map((j) => ({ pathway: j, c: ((query[j] as number) * vecs[i][j]) / denom }))
+      .sort((a, b) => Math.abs(b.c) - Math.abs(a.c))
+      .slice(0, 3);
+    hits.push({
+      target: i,
+      cos: obs[i],
+      tau: Math.sign(obs[i]) * percentileOf(bg[i], Math.abs(obs[i])),
+      p: (exceed[i] + 1) / (nPerm + 1),
+      fdr: 1, // filled below
+      generic,
+      specific: obs[i] - generic,
+      contrib,
+    });
+  }
+  // BH-FDR
+  const byP = [...hits].sort((a, b) => a.p - b.p);
+  let prev = 1;
+  for (let k = byP.length - 1; k >= 0; k -= 1) {
+    const q = Math.min(prev, (byP[k].p * byP.length) / (k + 1));
+    byP[k].fdr = q; prev = q;
+  }
+  return hits.sort((a, b) => b.cos - a.cos);
 }
