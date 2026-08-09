@@ -14,14 +14,84 @@ import { ramp } from '../colors';
 import { Segmented, Spinner, StatTile } from '../ui';
 import { useTip } from '../tooltip';
 
-type Metric = 'net' | 'act';
+type Metric = 'net' | 'up' | 'down' | 'act';
 type View = 'pair' | 'lasso';
 
 const metricValue = (metric: Metric) => (d: SummaryDrug, p: number): number => {
   if (d.tested[p] <= 0) return NaN;
   if (metric === 'act') return pathwayActivity(d, p);
+  if (metric === 'up') return d.up[p] / d.tested[p];
+  if (metric === 'down') return d.down[p] / d.tested[p];
   return (d.up[p] - d.down[p]) / d.tested[p];
 };
+
+const METRIC_LABEL: Record<Metric, string> = {
+  net: 'net direction = (up − down) / tests, per drug',
+  up: 'up-regulation = significant-up fraction of tests, per drug',
+  down: 'down-regulation = significant-down fraction of tests, per drug',
+  act: 'activity = significant fraction of tests, per drug',
+};
+
+function MetricControl({ metric, onChange }: { metric: Metric; onChange: (m: Metric) => void }) {
+  const dot = (c: string) => <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: c }} />;
+  return (
+    <Segmented
+      options={[
+        { value: 'net' as Metric, label: 'Net direction', title: '(up − down) / tests — signed regulation' },
+        { value: 'up' as Metric, label: <>{dot(ramp('up', 0.55))}Up</>, title: 'fraction of tests significantly up-regulated' },
+        { value: 'down' as Metric, label: <>{dot(ramp('down', 0.55))}Down</>, title: 'fraction of tests significantly down-regulated' },
+        { value: 'act' as Metric, label: 'Activity', title: 'significant fraction — magnitude only' },
+      ]}
+      value={metric} onChange={onChange}
+    />
+  );
+}
+
+function ModeSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const card = (v: View, title: string, desc: string, icon: React.ReactNode) => {
+    const active = view === v;
+    return (
+      <button
+        type="button" onClick={() => onChange(v)}
+        className={`flex min-w-72 flex-1 items-center gap-3.5 rounded-xl border p-4 text-left transition sm:max-w-md ${
+          active
+            ? 'border-stone-900 bg-white shadow-sm ring-1 ring-stone-900'
+            : 'border-stone-200 bg-white/70 hover:border-stone-400 hover:bg-white'}`}
+      >
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-stone-900' : 'bg-stone-100'}`}>
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <span className={`block text-[15px] font-semibold ${active ? 'text-stone-900' : 'text-stone-700'}`}>{title}</span>
+          <span className="mt-0.5 block text-xs leading-snug text-stone-500">{desc}</span>
+        </span>
+        <span className={`ml-auto shrink-0 text-lg ${active ? 'text-emerald-700' : 'text-transparent'}`}>✓</span>
+      </button>
+    );
+  };
+  const ink = (active: boolean) => (active ? '#ffffff' : '#52514e');
+  return (
+    <div className="mt-5 flex flex-wrap gap-3">
+      {card('pair', 'Pair scatter',
+        'Two pathways head-to-head — one point per drug, regression fit and statistical tests.',
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <line x1="4" y1="19" x2="20" y2="6" stroke={ink(view === 'pair')} strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="7" cy="14" r="1.9" fill={ink(view === 'pair')} />
+          <circle cx="11" cy="16" r="1.9" fill={ink(view === 'pair')} />
+          <circle cx="13" cy="9" r="1.9" fill={ink(view === 'pair')} />
+          <circle cx="17" cy="10" r="1.9" fill={ink(view === 'pair')} />
+        </svg>)}
+      {card('lasso', 'Lasso selection',
+        'One response vs the other 49 — sparse regression keeps only the pathways with independent signal.',
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <line x1="12" y1="3" x2="12" y2="21" stroke={ink(view === 'lasso')} strokeWidth="1.2" />
+          <rect x="12.8" y="5" width="7.5" height="3" fill={ink(view === 'lasso')} />
+          <rect x="6.5" y="10" width="4.7" height="3" fill={ink(view === 'lasso')} />
+          <rect x="12.8" y="15" width="3" height="3" fill={ink(view === 'lasso')} />
+        </svg>)}
+    </div>
+  );
+}
 
 const W = 680; const H = 540;
 const M = { l: 64, r: 18, t: 18, b: 56 };
@@ -70,7 +140,10 @@ export function Correlate({ manifest, summary, params }: {
   const [view, setViewRaw] = useState<View>(params.get('v') === 'lasso' ? 'lasso' : 'pair');
   const [xIdx, setXIdx] = useState(() => findPathway(manifest, params.get('x'), 'Hypoxia'));
   const [yIdx, setYIdx] = useState(() => findPathway(manifest, params.get('y'), 'Epithelial Mesenchymal Transition'));
-  const [metric, setMetric] = useState<Metric>(params.get('m') === 'act' ? 'act' : 'net');
+  const [metric, setMetric] = useState<Metric>(() => {
+    const m = params.get('m');
+    return m === 'act' || m === 'up' || m === 'down' ? m : 'net';
+  });
   const [hover, setHover] = useState<number | null>(null);
 
   const setView = (v: View) => { setViewRaw(v); setHashParams({ v: v === 'pair' ? null : v }); };
@@ -184,9 +257,7 @@ export function Correlate({ manifest, summary, params }: {
     if (hover !== null) window.location.hash = `#/drug/${encodeURIComponent(points[hover].slug)}`;
   };
 
-  const metricLabel = metric === 'net'
-    ? 'net direction = (up − down) / tests, per drug'
-    : 'activity = significant fraction of tests, per drug';
+  const metricLabel = METRIC_LABEL[metric];
 
   const same = xIdx === yIdx;
 
@@ -205,14 +276,9 @@ export function Correlate({ manifest, summary, params }: {
                 carry independent signal keep a coefficient. λ chosen by 5-fold cross-validation.</>}
           </p>
         </div>
-        <Segmented
-          options={[
-            { value: 'pair', label: 'Pair scatter' },
-            { value: 'lasso', label: 'Lasso selection' },
-          ]}
-          value={view} onChange={setView}
-        />
       </div>
+
+      <ModeSwitch view={view} onChange={setView} />
 
       {/* form row */}
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-white p-3">
@@ -242,13 +308,7 @@ export function Correlate({ manifest, summary, params }: {
           </select>
         </label>
         <div className="ml-auto flex items-center gap-2">
-          <Segmented
-            options={[
-              { value: 'net', label: 'Net direction', title: '(up − down) / tests — signed regulation' },
-              { value: 'act', label: 'Activity', title: 'significant fraction — magnitude only' },
-            ]}
-            value={metric} onChange={setM}
-          />
+          <MetricControl metric={metric} onChange={setM} />
         </div>
       </div>
 
@@ -532,7 +592,7 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
           Standardized coefficients: expected change (in SD of the response) per SD of the predictor,
           holding the other selected pathways fixed. Lasso zeroes redundant predictors — among strongly
           correlated pathways it keeps one representative, so an excluded pathway is not evidence of
-          no association. Metric: {metric === 'net' ? 'net direction (up − down)/tests' : 'activity fraction'} at q &lt; 0.05.
+          no association. Metric: {METRIC_LABEL[metric]} at q &lt; 0.05.
         </p>
       </div>
 

@@ -38,8 +38,9 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   hand-rolled inference: Pearson & Spearman with exact t-based p-values, slope
   CI, an exact binomial sign test on direction concordance, and a
   potency-adjusted partial correlation (controls per-drug mean activity).
-  Metrics: net direction (up − down)/tests or activity fraction. Defaults to
-  Hypoxia vs Epithelial Mesenchymal Transition. A second view, **Lasso
+  Metrics: net direction (up − down)/tests, up-regulation fraction,
+  down-regulation fraction, or activity fraction. Defaults to Hypoxia vs
+  Epithelial Mesenchymal Transition. A second view, **Lasso
   selection**, regresses a response pathway on the other 49 with L1
   regularization (cyclic coordinate descent over a 60-λ path, 5-fold CV,
   λ-min / λ-1SE rules, verified against scikit-learn): redundant predictors are
