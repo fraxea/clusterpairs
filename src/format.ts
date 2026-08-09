@@ -44,3 +44,24 @@ export const msigdbUrl = (name: string): string =>
 
 // "not in this stream's output" — hatched so missing data never reads as zero
 export const HATCH = 'repeating-linear-gradient(45deg,#fafaf8 0 3px,#eceae4 3px 6px)';
+
+/** Patch query params into the current hash route via replaceState (no rerender). */
+export function setHashParams(patch: Record<string, string | null>): void {
+  const h = window.location.hash.replace(/^#/, '');
+  const qIdx = h.indexOf('?');
+  const path = qIdx >= 0 ? h.slice(0, qIdx) : h;
+  const sp = new URLSearchParams(qIdx >= 0 ? h.slice(qIdx + 1) : '');
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) sp.delete(k); else sp.set(k, v);
+  }
+  const qs = sp.toString();
+  window.history.replaceState(null, '', `#${path}${qs ? `?${qs}` : ''}`);
+}
+
+/** p-value formatting for stats readouts. */
+export function fmtP(p: number): string {
+  if (!Number.isFinite(p)) return '—';
+  if (p < 1e-300) return 'p < 1e-300';
+  if (p < 1e-4) return `p = ${p.toExponential(1)}`;
+  return `p = ${p.toFixed(4)}`;
+}

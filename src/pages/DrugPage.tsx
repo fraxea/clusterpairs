@@ -14,24 +14,12 @@ import {
 } from '../significance';
 import { countColor, countColorT, jaccardColor, NONSIG, ramp, sigColor, textOn } from '../colors';
 import { CountLegend, EmptyState, Segmented, SigLegend } from '../ui';
-import { fmtPct, fmtQ, HATCH, pathwaySlug, streamKey, streamLabel } from '../format';
+import { fmtPct, fmtQ, HATCH, pathwaySlug, setHashParams, streamKey, streamLabel } from '../format';
 import { useTip } from '../tooltip';
 
 type Tab = 'pathways' | 'clusters' | 'methods';
 type View = 'pairwise' | 'ovr_drug' | 'ovr_dmso';
 type Dir = 'up' | 'down';
-
-function setHashParams(patch: Record<string, string | null>): void {
-  const h = window.location.hash.replace(/^#/, '');
-  const qIdx = h.indexOf('?');
-  const path = qIdx >= 0 ? h.slice(0, qIdx) : h;
-  const sp = new URLSearchParams(qIdx >= 0 ? h.slice(qIdx + 1) : '');
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === null) sp.delete(k); else sp.set(k, v);
-  }
-  const qs = sp.toString();
-  window.history.replaceState(null, '', `#${path}${qs ? `?${qs}` : ''}`);
-}
 
 // The `params` prop is frozen at the last real navigation (setHashParams uses
 // replaceState, which fires no hashchange) — read the live hash when local

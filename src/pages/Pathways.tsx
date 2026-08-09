@@ -166,6 +166,10 @@ export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; s
             <a className="text-emerald-700 hover:text-emerald-800" href={msigdbUrl(name)} target="_blank" rel="noreferrer">
               MSigDB ↗
             </a>
+            {' '}·{' '}
+            <a className="text-emerald-700 hover:text-emerald-800" href={`#/correlate?x=${pathwaySlug(name)}`}>
+              correlate →
+            </a>
           </p>
         </div>
         <Segmented

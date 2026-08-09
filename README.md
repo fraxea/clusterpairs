@@ -33,6 +33,18 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   differential theme labels; force-directed layout) and a pathway co-response
   network (edges = Pearson correlation of activity across drugs → co-regulated
   modules). All math in `src/analysis.ts`.
+- **Correlation** (`#/correlate`) — does pathway A move with pathway B across
+  the library? One point per drug, OLS fit with 95% confidence band, and
+  hand-rolled inference: Pearson & Spearman with exact t-based p-values, slope
+  CI, an exact binomial sign test on direction concordance, and a
+  potency-adjusted partial correlation (controls per-drug mean activity).
+  Metrics: net direction (up − down)/tests or activity fraction. Defaults to
+  Hypoxia vs Epithelial Mesenchymal Transition. A second view, **Lasso
+  selection**, regresses a response pathway on the other 49 with L1
+  regularization (cyclic coordinate descent over a 60-λ path, 5-fold CV,
+  λ-min / λ-1SE rules, verified against scikit-learn): redundant predictors are
+  clipped to exactly zero, and the surviving standardized coefficients are
+  shown as a diverging bar chart with the CV error curve and a λ slider.
 - **Rank** (`#/rank`) — pick pathways, rank drugs instantly from the summary;
   optional exact re-rank at the live cutoff (downloads all drug files).
 
