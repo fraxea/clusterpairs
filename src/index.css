@@ -7,3 +7,63 @@ html {
 body {
   -webkit-font-smoothing: antialiased;
 }
+
+/* --- q-value cutoff slider ------------------------------------------------
+   A thin instrument-style control: the emerald fill left of the thumb shows
+   how strict the current threshold is (the scale is -log10 q, so each tick
+   dot is one decade). --fill is set inline by CutoffSlider. */
+.q-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #047857 var(--fill, 0%),
+    #e1e0d9 var(--fill, 0%)
+  );
+  outline: none;
+  cursor: pointer;
+}
+.q-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #047857;
+  box-shadow: 0 1px 3px rgba(11, 11, 11, 0.28);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.q-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+.q-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 2px 6px rgba(11, 11, 11, 0.32);
+}
+.q-slider:focus-visible {
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.25);
+}
+.q-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #047857;
+  box-shadow: 0 1px 3px rgba(11, 11, 11, 0.28);
+  transition: transform 0.12s ease;
+}
+.q-slider::-moz-range-thumb:hover {
+  transform: scale(1.12);
+}
+.q-slider::-moz-range-track {
+  height: 5px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #047857 var(--fill, 0%),
+    #e1e0d9 var(--fill, 0%)
+  );
+}

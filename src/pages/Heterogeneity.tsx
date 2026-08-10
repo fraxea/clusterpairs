@@ -91,9 +91,12 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
         <StatTile label="Commonly divergent" value={`${model.common.size}`} sub="pathways that split clusters in >⅓ of drugs" />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-4">
-        {/* ranking */}
-        <div className="min-w-[24rem] flex-1 rounded-lg border border-stone-200 bg-white p-4">
+      {/* Full-bleed row: breaks out of the page's max-width so the detail
+          heatmap can show all clusters (up to 14) without scrolling; the
+          in-card scroller remains only as a fallback on narrow windows. */}
+      <div className="relative left-1/2 mt-5 flex w-[calc(100vw-3rem)] max-w-[100rem] -translate-x-1/2 flex-wrap gap-4">
+        {/* ranking — flexes to fill the row when the detail card wraps below */}
+        <div className="min-w-[24rem] flex-1 basis-[26rem] rounded-lg border border-stone-200 bg-white p-4">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold text-stone-800">Drugs by cluster disagreement</h3>
             <button
@@ -150,7 +153,10 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
 
         {/* detail */}
         {sel && (
-          <div className="min-w-0 flex-1 basis-[30rem] rounded-lg border border-stone-200 bg-white p-5">
+          /* min-w-fit: the card is always at least as wide as its heatmap —
+             beside the list when there's room, wrapping to a full row when
+             not — so all clusters are visible without scrolling. */
+          <div className="min-w-fit flex-1 rounded-lg border border-stone-200 bg-white p-5 max-lg:min-w-0">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="truncate text-sm font-semibold text-stone-800">
                 {nameBySlug.get(sel.slug)} — cluster × pathway response

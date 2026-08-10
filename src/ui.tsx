@@ -16,17 +16,37 @@ export function NavLink({ href, active, children }: { href: string; active: bool
 }
 
 export function CutoffSlider({ cutoff, onChange }: { cutoff: number; onChange: (c: number) => void }) {
-  // slider in -log10 space: 1 (q<0.1) .. 4 (q<0.0001)
+  // slider in -log10 space: 1 (q<0.1) .. 4 (q<0.0001); the fill shows strictness
   const val = -Math.log10(cutoff);
+  const pct = ((val - 1) / 3) * 100;
   return (
-    <label className="flex items-center gap-2.5 text-sm" title="Live significance threshold — every per-drug view re-thresholds instantly">
-      <span className="hidden font-medium text-stone-500 sm:inline">q &lt;</span>
-      <input
-        type="range" min={1} max={4} step={0.1} value={val}
-        onChange={(e) => onChange(Number(10 ** -Number(e.target.value)))}
-        className="h-1 w-32 cursor-pointer accent-emerald-700"
-      />
-      <span className="w-14 font-mono text-xs tabular-nums text-stone-900">{cutoff.toPrecision(2)}</span>
+    <label
+      className="group flex items-center gap-2.5 text-sm"
+      title="Significance threshold — per-drug views re-threshold live; each tick is one decade of q"
+    >
+      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-stone-400 sm:inline">
+        cutoff
+      </span>
+      <span className="relative flex h-5 w-40 items-center">
+        <input
+          type="range" min={1} max={4} step={0.1} value={val}
+          onChange={(e) => onChange(Number(10 ** -Number(e.target.value)))}
+          className="q-slider w-full"
+          style={{ '--fill': `${pct}%` } as React.CSSProperties}
+          aria-label="q-value significance cutoff"
+        />
+        {/* decade ticks (0.1 · 0.01 · 0.001 · 0.0001), aligned to thumb travel */}
+        {[0, 1 / 3, 2 / 3, 1].map((f) => (
+          <span
+            key={f}
+            className="pointer-events-none absolute top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80"
+            style={{ left: `calc(8px + ${f} * (100% - 16px))` }}
+          />
+        ))}
+      </span>
+      <span className="w-16 rounded-md bg-stone-100 px-1.5 py-1 text-center font-mono text-xs font-semibold tabular-nums text-stone-800 transition-colors group-hover:bg-stone-200/70">
+        &lt;&thinsp;{cutoff.toPrecision(2)}
+      </span>
     </label>
   );
 }
