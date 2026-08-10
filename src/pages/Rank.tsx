@@ -6,12 +6,12 @@ import type { Manifest, Summary } from '../types';
 import { loadAllDrugs } from '../data';
 import { rankDrugs, thrFromCutoff, type DrugRank } from '../significance';
 import { ramp } from '../colors';
-import { Chip, Spinner } from '../ui';
+import { Chip, CutoffSlider, Spinner } from '../ui';
 import { fmtCompact, streamLabel } from '../format';
 import { useTip } from '../tooltip';
 
-export function Rank({ manifest, summary, cutoff }: {
-  manifest: Manifest; summary: Summary | null; cutoff: number;
+export function Rank({ manifest, summary, cutoff, setCutoff }: {
+  manifest: Manifest; summary: Summary | null; cutoff: number; setCutoff: (c: number) => void;
 }) {
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<number[]>([]); // pathway indices
@@ -78,11 +78,16 @@ export function Rank({ manifest, summary, cutoff }: {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Rank drugs by pathway</h1>
-      <p className="mt-1 max-w-2xl text-sm text-stone-500">
-        Drugs are ranked by how many (stream × cluster-pair) tests reach significance across the selected
-        pathways. Instant results use the reference cutoff q &lt; 0.05.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Rank drugs by pathway</h1>
+          <p className="mt-1 max-w-2xl text-sm text-stone-500">
+            Drugs are ranked by how many (stream × cluster-pair) tests reach significance across the selected
+            pathways. Instant results use the reference cutoff q &lt; 0.05.
+          </p>
+        </div>
+        <CutoffSlider cutoff={cutoff} onChange={setCutoff} />
+      </div>
 
       <div className="mt-5 rounded-lg border border-stone-200 bg-white p-4">
         <input

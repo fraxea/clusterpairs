@@ -13,7 +13,7 @@ import {
   type PathwayCell, type PathwayRow,
 } from '../significance';
 import { countColor, countColorT, jaccardColor, NONSIG, ramp, sigColor, textOn } from '../colors';
-import { CountLegend, EmptyState, Segmented, SigLegend } from '../ui';
+import { CountLegend, CutoffSlider, EmptyState, Segmented, SigLegend } from '../ui';
 import { fmtPct, fmtQ, HATCH, pathwaySlug, setHashParams, streamKey, streamLabel } from '../format';
 import { useTip } from '../tooltip';
 
@@ -30,8 +30,9 @@ function liveParams(): URLSearchParams {
   return new URLSearchParams(q >= 0 ? h.slice(q + 1) : '');
 }
 
-export function DrugPage({ manifest, summary, slug, cutoff, params }: {
-  manifest: Manifest; summary: Summary | null; slug: string; cutoff: number; params: URLSearchParams;
+export function DrugPage({ manifest, summary, slug, cutoff, setCutoff, params }: {
+  manifest: Manifest; summary: Summary | null; slug: string;
+  cutoff: number; setCutoff: (c: number) => void; params: URLSearchParams;
 }) {
   const meta = manifest.drugs.find((d) => d.slug === slug);
   const summaryRow = summary?.drugs.find((d) => d.slug === slug) ?? null;
@@ -115,7 +116,10 @@ export function DrugPage({ manifest, summary, slug, cutoff, params }: {
 
   return (
     <div>
-      <a href="#/" className="text-sm text-stone-500 hover:text-stone-800">&larr; All drugs</a>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <a href="#/" className="text-sm text-stone-500 hover:text-stone-800">&larr; All drugs</a>
+        <CutoffSlider cutoff={cutoff} onChange={setCutoff} />
+      </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">{meta.name}</h1>

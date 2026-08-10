@@ -5,7 +5,7 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Manifest, Summary } from './types';
 import { configureUnsignedStreams, loadManifest, loadSummary } from './data';
-import { CutoffSlider, EmptyState, Spinner } from './ui';
+import { EmptyState, Spinner } from './ui';
 import { TooltipProvider } from './tooltip';
 import { Home } from './pages/Home';
 import { Atlas } from './pages/Atlas';
@@ -64,7 +64,7 @@ function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
 const CUTOFF_KEY = 'tahoe.cutoff';
 function initialCutoff(): number {
   const v = Number(window.localStorage.getItem(CUTOFF_KEY));
-  return v >= 1e-4 && v <= 0.1 ? v : 0.05;
+  return v >= 1e-6 && v <= 0.1 ? v : 0.05;
 }
 
 // 14px stroke icons for the nav — one small geometric mark per view.
@@ -152,9 +152,7 @@ function NavItem({ href, active, icon, children }: {
   );
 }
 
-function Shell({ route, cutoff, setCutoff, children }: {
-  route: Route; cutoff: number; setCutoff: (c: number) => void; children: ReactNode;
-}) {
+function Shell({ route, children }: { route: Route; children: ReactNode }) {
   return (
     // min-w-fit: when a wide view (the atlas matrix) forces horizontal page
     // scroll, the background and header still span the full content width.
@@ -186,15 +184,12 @@ function Shell({ route, cutoff, setCutoff, children }: {
             <NavItem href="#/figures" icon="figures" active={route.type === 'figures'}>Figures</NavItem>
             <NavItem href="#/guide" icon="guide" active={route.type === 'guide'}>Guide</NavItem>
           </nav>
-          <div className="ml-auto flex items-center rounded-lg border border-stone-200 bg-white px-3 py-1.5 shadow-sm">
-            <CutoffSlider cutoff={cutoff} onChange={setCutoff} />
-          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-5 py-7">{children}</main>
       <footer className="mx-auto max-w-7xl px-5 pb-8 pt-2 text-[11px] text-stone-400">
-        Pathway enrichment atlas · significance is BH-adjusted per stream · global views use the fixed
-        reference cutoff q &lt; 0.05; per-drug views follow the live slider ·{' '}
+        Pathway enrichment atlas · significance is BH-adjusted per stream · cross-drug views use the fixed
+        reference cutoff q &lt; 0.05; drug pages and Rank carry their own live threshold ·{' '}
         <a href="#/guide" className="text-emerald-700 hover:text-emerald-800">guide</a>
       </footer>
     </div>
@@ -268,7 +263,7 @@ export default function App() {
   if (loadErr) {
     return (
       <TooltipProvider>
-        <Shell route={route} cutoff={cutoff} setCutoff={setCutoff}>
+        <Shell route={route}>
           <EmptyState title="No data loaded" body={loadErr} />
           <p className="mt-3 text-sm text-stone-500">
             Generate it with <span className="font-mono">python build_frontend_data.py</span> (out_dir = public/data),
@@ -281,7 +276,7 @@ export default function App() {
   if (!manifest) {
     return (
       <TooltipProvider>
-        <Shell route={route} cutoff={cutoff} setCutoff={setCutoff}>
+        <Shell route={route}>
           <Spinner label="Loading manifest &hellip;" />
         </Shell>
       </TooltipProvider>
@@ -298,7 +293,7 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <Shell route={route} cutoff={cutoff} setCutoff={setCutoff}>
+      <Shell route={route}>
         {route.type === 'atlas' ? needsSummary(summary && <Atlas manifest={manifest} summary={summary} />)
           : route.type === 'pathways' ? needsSummary(summary && <PathwaysIndex manifest={manifest} summary={summary} />)
             : route.type === 'pathway' ? needsSummary(summary && <PathwayPage manifest={manifest} summary={summary} slug={route.slug} />)
@@ -309,9 +304,9 @@ export default function App() {
               : route.type === 'figures' ? needsSummary(summary && <Figures manifest={manifest} summary={summary} />)
               : route.type === 'guide' ? <Guide manifest={manifest} summary={summary} />
               : route.type === 'drug' ? (
-                <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} params={params} />
+                <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
               )
-                : route.type === 'rank' ? <Rank manifest={manifest} summary={summary} cutoff={deferredCutoff} />
+                : route.type === 'rank' ? <Rank manifest={manifest} summary={summary} cutoff={deferredCutoff} setCutoff={setCutoff} />
                   : <Home manifest={manifest} summary={summary} />}
       </Shell>
     </TooltipProvider>

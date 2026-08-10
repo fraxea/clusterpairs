@@ -15,28 +15,40 @@ export function NavLink({ href, active, children }: { href: string; active: bool
   );
 }
 
-export function CutoffSlider({ cutoff, onChange }: { cutoff: number; onChange: (c: number) => void }) {
-  // slider in -log10 space: 1 (q<0.1) .. 4 (q<0.0001); the fill shows strictness
-  const val = -Math.log10(cutoff);
-  const pct = ((val - 1) / 3) * 100;
+const CUT_MIN = 1;   // q < 0.1
+const CUT_MAX = 6;   // q < 0.000001
+const CUT_TICKS = Array.from({ length: CUT_MAX - CUT_MIN + 1 }, (_, i) => i / (CUT_MAX - CUT_MIN));
+
+/** q formatted for the readout: plain decimals down to 1e-6, never wrapping. */
+function fmtCutoff(q: number): string {
+  if (q >= 0.001) return q.toPrecision(2).replace(/0+$/, '').replace(/\.$/, '');
+  return q.toExponential(0).replace('e-', 'e−');
+}
+
+export function CutoffSlider({ cutoff, onChange, className = '' }: {
+  cutoff: number; onChange: (c: number) => void; className?: string;
+}) {
+  // slider in -log10 space; the emerald fill shows how strict the threshold is
+  const val = Math.min(CUT_MAX, Math.max(CUT_MIN, -Math.log10(cutoff)));
+  const pct = ((val - CUT_MIN) / (CUT_MAX - CUT_MIN)) * 100;
   return (
     <label
-      className="group flex items-center gap-2.5 text-sm"
-      title="Significance threshold — per-drug views re-threshold live; each tick is one decade of q"
+      className={`group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5 py-2 shadow-sm ${className}`}
+      title="Significance threshold — this view re-thresholds live; each tick is one decade of q"
     >
-      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-stone-400 sm:inline">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
         cutoff
       </span>
-      <span className="relative flex h-5 w-40 items-center">
+      <span className="relative flex h-5 w-56 items-center">
         <input
-          type="range" min={1} max={4} step={0.1} value={val}
+          type="range" min={CUT_MIN} max={CUT_MAX} step={0.1} value={val}
           onChange={(e) => onChange(Number(10 ** -Number(e.target.value)))}
           className="q-slider w-full"
           style={{ '--fill': `${pct}%` } as React.CSSProperties}
           aria-label="q-value significance cutoff"
         />
-        {/* decade ticks (0.1 · 0.01 · 0.001 · 0.0001), aligned to thumb travel */}
-        {[0, 1 / 3, 2 / 3, 1].map((f) => (
+        {/* one tick per decade of q (0.1 … 1e-6), aligned to thumb travel */}
+        {CUT_TICKS.map((f) => (
           <span
             key={f}
             className="pointer-events-none absolute top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80"
@@ -44,8 +56,8 @@ export function CutoffSlider({ cutoff, onChange }: { cutoff: number; onChange: (
           />
         ))}
       </span>
-      <span className="w-16 rounded-md bg-stone-100 px-1.5 py-1 text-center font-mono text-xs font-semibold tabular-nums text-stone-800 transition-colors group-hover:bg-stone-200/70">
-        &lt;&thinsp;{cutoff.toPrecision(2)}
+      <span className="w-[5.5rem] shrink-0 whitespace-nowrap rounded-md bg-stone-100 px-2 py-1 text-center font-mono text-xs font-semibold tabular-nums text-stone-800 transition-colors group-hover:bg-stone-200/70">
+        q &lt; {fmtCutoff(cutoff)}
       </span>
     </label>
   );
