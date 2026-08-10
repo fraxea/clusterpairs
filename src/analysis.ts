@@ -623,3 +623,63 @@ export function connectivity(
   }
   return hits.sort((a, b) => b.cos - a.cos);
 }
+
+// ============================ heterogeneity =================================
+// Subpopulation-selective response: per-drug dispersion of per-query-cluster
+// net-direction profiles (directional streams only — see hetero.json). RMS
+// profile distance, NOT 1−r: flat/weak profiles decorrelate and would inflate
+// a correlation-based metric.
+
+export interface HeteroProfile {
+  nets: number[][];        // [cluster][pathway] net direction
+  support: number[][];     // [cluster][pathway] tested records
+}
+
+export function heteroProfile(up: number[][], down: number[][], tested: number[][]): HeteroProfile {
+  const nets = up.map((row, q) => row.map((u, p) =>
+    (tested[q][p] > 0 ? (u - down[q][p]) / tested[q][p] : 0)));
+  return { nets, support: tested };
+}
+
+export interface HeteroStats {
+  dispersion: number;       // mean pairwise RMS distance between cluster profiles
+  divergent: number[];      // pathways where clusters strictly disagree in sign
+  sd: number[];             // per-pathway cross-cluster standard deviation
+}
+
+const DIV_EPS = 0.15;       // |net| a cluster must reach to cast a direction vote
+const DIV_SUPPORT = 6;      // min directional records behind a vote
+
+export function heteroStats(prof: HeteroProfile): HeteroStats {
+  const { nets, support } = prof;
+  const nC = nets.length;
+  const nP = nets[0]?.length ?? 0;
+  let dispersion = 0; let pairs = 0;
+  for (let i = 0; i < nC; i += 1) {
+    for (let j = i + 1; j < nC; j += 1) {
+      let ss = 0;
+      for (let p = 0; p < nP; p += 1) ss += (nets[i][p] - nets[j][p]) ** 2;
+      dispersion += Math.sqrt(ss / Math.max(1, nP));
+      pairs += 1;
+    }
+  }
+  dispersion = pairs > 0 ? dispersion / pairs : 0;
+
+  const divergent: number[] = [];
+  const sd: number[] = [];
+  for (let p = 0; p < nP; p += 1) {
+    let lo = Infinity; let hi = -Infinity;
+    let sum = 0; let sq = 0; let n = 0;
+    for (let q = 0; q < nC; q += 1) {
+      const v = nets[q][p];
+      sum += v; sq += v * v; n += 1;
+      if (support[q][p] >= DIV_SUPPORT) {
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    sd.push(n > 1 ? Math.sqrt(Math.max(0, sq / n - (sum / n) ** 2)) : 0);
+    if (hi > DIV_EPS && lo < -DIV_EPS) divergent.push(p);
+  }
+  return { dispersion, divergent, sd };
+}

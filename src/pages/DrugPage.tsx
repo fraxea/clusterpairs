@@ -5,8 +5,8 @@
 // Tab/stream/pair state is mirrored into the URL hash (shareable links).
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { DrugData, Manifest, Stream, Summary } from '../types';
-import { loadDrug } from '../data';
+import type { Annotations, DrugData, Manifest, Stream, Summary } from '../types';
+import { loadAnnotations, loadDrug } from '../data';
 import {
   BASE_THR, concordance, explorerByPathway, ovrByPathway,
   pairMatrix, pairwiseAt, survival, thrFromCutoff, topPathways,
@@ -37,6 +37,8 @@ export function DrugPage({ manifest, summary, slug, cutoff, params }: {
   const summaryRow = summary?.drugs.find((d) => d.slug === slug) ?? null;
   const [data, setData] = useState<DrugData | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ann, setAnn] = useState<Annotations>({});
+  useEffect(() => { loadAnnotations().then(setAnn); }, []);
 
   const initTab = params.get('tab');
   const [tab, setTabRaw] = useState<Tab>(
@@ -127,6 +129,14 @@ export function DrugPage({ manifest, summary, slug, cutoff, params }: {
               title="Fraction of all pathway tests significant at q < 0.05">
               activity {fmtPct(summaryRow.sig / Math.max(1, summaryRow.records))}
             </span>
+            {ann[slug]?.moa?.[0] && (
+              <span
+                className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-stone-600"
+                title={`ChEMBL ${ann[slug].chembl_id ?? ''} — ${ann[slug].moa.join('; ')}`}
+              >
+                {ann[slug].moa[0]}
+              </span>
+            )}
             <a
               href={`#/connect?q=${encodeURIComponent(slug)}`}
               className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-emerald-700 hover:border-stone-400 hover:text-emerald-800"

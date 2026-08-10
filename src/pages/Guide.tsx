@@ -135,6 +135,27 @@ export function Guide({ manifest, summary }: { manifest: Manifest; summary: Summ
           </p>
         </Section>
 
+        <Section id="hetero" title="Heterogeneity" href="#/hetero">
+          <p>
+            Do all of a drug&rsquo;s cell clusters respond the same way? <B>Dispersion</B> is the mean RMS
+            disagreement between per-cluster net-direction profiles (signed streams only). Uniform broad
+            cytotoxics rank low; context-selective targeted agents rank high — the substrate of residual
+            disease. The detail grid shows each cluster&rsquo;s response for the most variable pathways;
+            a <B>common</B> tag flags pathways that split clusters for over a third of all drugs
+            (proliferation programs — baseline biology, not drug selectivity). The <B>⇅</B> count is
+            pathways where clusters strictly disagree in direction.
+          </p>
+        </Section>
+
+        <Section id="figures" title="Figures" href="#/figures">
+          <p>
+            Manuscript-ready panels regenerated live from the current data — the consensus forest, the
+            Hypoxia–EMT correlation, connectivity class-recovery, and per-stream calling rates — each with
+            a paper-style caption and one-click <B>SVG</B> (vector figure) and <B>CSV</B> (underlying
+            numbers) downloads. Most other views also carry SVG/CSV buttons on their main charts.
+          </p>
+        </Section>
+
         <Section id="rank" title="Rank" href="#/rank">
           <p>
             Select pathways, get drugs ranked by significant tests across them instantly (reference cutoff),

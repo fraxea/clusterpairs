@@ -32,10 +32,14 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "public" / "data"
 
 
-def summarize_drug(path: Path, n_pathways: int, n_streams: int, unsigned_streams: set[int]) -> dict:
+def summarize_drug(
+    path: Path, n_pathways: int, n_streams: int,
+    unsigned_streams: set[int], directional_streams: set[int],
+) -> tuple[dict, dict]:
     d = json.loads(path.read_text())
     c = d["pairwise"]
     stream, pathway, nlp, sign = c["stream"], c["pathway"], c["nlp"], c["sign"]
+    query = c["query"]
 
     tested = [0] * n_pathways
     up = [0] * n_pathways
@@ -44,11 +48,21 @@ def summarize_drug(path: Path, n_pathways: int, n_streams: int, unsigned_streams
     per_stream_sig = [0] * n_streams
     per_stream_tested = [0] * n_streams
 
+    # per-QUERY-cluster tallies from the directional streams only — the raw
+    # material for the heterogeneity view (which subpopulations respond how).
+    nq = len(d["query_clusters"])
+    q_up = [[0] * n_pathways for _ in range(nq)]
+    q_down = [[0] * n_pathways for _ in range(nq)]
+    q_tested = [[0] * n_pathways for _ in range(nq)]
+
     for k in range(len(stream)):
         p = pathway[k]
         s = stream[k]
         tested[p] += 1
         per_stream_tested[s] += 1
+        directional = s in directional_streams
+        if directional:
+            q_tested[query[k]][p] += 1
         if nlp[k] >= THR:
             per_stream_sig[s] += 1
             sg = sign[k]
@@ -58,11 +72,22 @@ def summarize_drug(path: Path, n_pathways: int, n_streams: int, unsigned_streams
                 uns[p] += 1
             elif sg > 0:
                 up[p] += 1
+                if directional:
+                    q_up[query[k]][p] += 1
             elif sg < 0:
                 down[p] += 1
+                if directional:
+                    q_down[query[k]][p] += 1
             else:
                 uns[p] += 1
 
+    hetero = {
+        "slug": d["slug"],
+        "clusters": d["query_clusters"],
+        "up": q_up,
+        "down": q_down,
+        "tested": q_tested,
+    }
     return {
         "slug": d["slug"],
         "n_ref": len(d["ref_clusters"]),
@@ -75,7 +100,7 @@ def summarize_drug(path: Path, n_pathways: int, n_streams: int, unsigned_streams
         "up": up,
         "down": down,
         "uns": uns,
-    }
+    }, hetero
 
 
 def main() -> int:
@@ -85,14 +110,19 @@ def main() -> int:
     unsigned_streams = {
         i for i, (method, _lang) in enumerate(manifest["streams"]) if method == "ora"
     }
+    directional_streams = {
+        i for i, (method, _lang) in enumerate(manifest["streams"]) if method in ("gsea", "fgsea")
+    }
 
     drugs = []
+    heteros = []
     for i, meta in enumerate(manifest["drugs"]):
         path = DATA / meta["file"]
         if not path.exists():
             print(f"  !! missing {meta['file']}", file=sys.stderr)
             continue
-        row = summarize_drug(path, n_pathways, n_streams, unsigned_streams)
+        row, het = summarize_drug(path, n_pathways, n_streams, unsigned_streams, directional_streams)
+        heteros.append(het)
         if row["slug"] != meta["slug"]:
             print(f"  !! slug mismatch: {row['slug']} vs {meta['slug']}", file=sys.stderr)
         drugs.append(row)
@@ -136,6 +166,15 @@ def main() -> int:
     dest = DATA / "summary.json"
     dest.write_text(json.dumps(out, separators=(",", ":")))
     print(f"wrote {dest} ({dest.stat().st_size / 1024:.0f} KB, {len(drugs)} drugs)")
+
+    hdest = DATA / "hetero.json"
+    hdest.write_text(json.dumps({
+        "generated": out["generated"],
+        "cutoff": CUTOFF,
+        "streams_used": sorted(directional_streams),
+        "drugs": heteros,
+    }, separators=(",", ":")))
+    print(f"wrote {hdest} ({hdest.stat().st_size / 1024:.0f} KB)")
     return 0
 
 

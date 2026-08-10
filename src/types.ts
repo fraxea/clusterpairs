@@ -82,3 +82,29 @@ export interface Summary {
   };
   drugs: SummaryDrug[];
 }
+
+// ---- hetero.json — per-query-cluster tallies (scripts/build_summary.py) ----
+export interface HeteroDrug {
+  slug: string;
+  clusters: string[];       // query cluster labels
+  up: number[][];           // [cluster][pathway] significant-up counts
+  down: number[][];
+  tested: number[][];       // directional-stream records per cluster×pathway
+}
+
+export interface Hetero {
+  generated: string;
+  cutoff: number;
+  streams_used: number[];   // manifest.streams indices (the signed streams)
+  drugs: HeteroDrug[];
+}
+
+// ---- annotations.json — ChEMBL mechanisms (scripts/fetch_annotations.py) ----
+export interface DrugAnnotation {
+  chembl_id?: string;
+  matched_name?: string;
+  max_phase?: number | string | null;
+  moa: string[];
+  match: 'exact' | 'fuzzy' | 'none';
+}
+export type Annotations = Record<string, DrugAnnotation>;

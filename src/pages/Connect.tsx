@@ -4,12 +4,13 @@
 // repurposing read-out). tau is the headline specificity score; each hit's
 // cosine is decomposed into the generic proliferation-stress axis (atlas PC1)
 // vs pathway-specific signal, so generic-toxicity matches are visible.
-import { useMemo, useRef, useState } from 'react';
-import type { Manifest, Summary } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Annotations, Manifest, Summary } from '../types';
 import {
   connectivity, connectivityBackground, netVectors, pc1Axis, type ConnectivityHit,
 } from '../analysis';
 import { fmtP, pathwaySlug, setHashParams } from '../format';
+import { loadAnnotations } from '../data';
 import { NONSIG, ramp } from '../colors';
 import { downloadSvg } from '../export';
 import { Segmented, StatTile } from '../ui';
@@ -42,6 +43,8 @@ export function Connect({ manifest, summary, params }: {
 }) {
   const tip = useTip();
   const wfRef = useRef<SVGSVGElement>(null);
+  const [ann, setAnn] = useState<Annotations>({});
+  useEffect(() => { loadAnnotations().then(setAnn); }, []);
   const slugs = useMemo(() => summary.drugs.map((d) => d.slug), [summary.drugs]);
   const nameBySlug = useMemo(() => new Map(manifest.drugs.map((d) => [d.slug, d.name])), [manifest.drugs]);
   const pwBySlug = useMemo(
@@ -171,7 +174,12 @@ export function Connect({ manifest, summary, params }: {
             >
               <div className="flex items-center gap-2">
                 <span className="w-5 shrink-0 text-right font-mono text-[10px] text-stone-400">{i + 1}</span>
-                <span className="w-40 shrink-0 truncate text-sm text-stone-800">{nameBySlug.get(slug)}</span>
+                <span className="w-40 shrink-0">
+                  <span className="block truncate text-sm text-stone-800">{nameBySlug.get(slug)}</span>
+                  {ann[slug]?.moa?.[0] && (
+                    <span className="block truncate text-[10px] leading-tight text-stone-400">{ann[slug].moa[0]}</span>
+                  )}
+                </span>
                 <span className="w-44 shrink-0">{renderStrip(vecs[h.target], 'h-2')}</span>
                 {/* cosine split: generic (ink) + specific (tone) share of |cos| */}
                 <span className="flex h-2 w-24 shrink-0 overflow-hidden rounded-[2px] bg-stone-100" title="generic vs specific share">

@@ -56,6 +56,13 @@ streams (GSEA·py, GSEA·R, fgsea·R, ORA·py, ORA·R, CellSpectra·py, CellSpec
   (leave-one-out correlation, ~24% of matrix energy lies on the shared axis),
   and the residual layer — the drug × pathway effects (in σ) the consensus
   cannot explain.
+- **Heterogeneity** (`#/hetero`) — subpopulation-selective response: per-drug
+  dispersion of per-cluster net-direction profiles (signed streams). Uniform
+  cytotoxics rank low, context-selective targeted agents high; the detail grid
+  shows each cluster's response with commonly-divergent pathways flagged.
+- **Figures** (`#/figures`) — manuscript-ready panels (consensus forest,
+  Hypoxia–EMT correlation, connectivity class-recovery, per-stream calling
+  rates) regenerated live, each with SVG + CSV download.
 - **Rank** (`#/rank`) — pick pathways, rank drugs instantly from the summary;
   optional exact re-rank at the live cutoff (downloads all drug files).
 - **Guide** (`#/guide`) — how to read every view, dataset semantics, the color
@@ -76,10 +83,13 @@ reference cutoff q < 0.05 baked into `summary.json` and say so in their legends.
    power all cross-drug views without downloading the ~240 MB of drug files:
 
 ```bash
-python3 scripts/build_summary.py
+python3 scripts/build_summary.py      # summary.json + hetero.json
+python3 scripts/fetch_annotations.py  # annotations.json (ChEMBL mechanisms; resumable)
 ```
 
-Re-run it whenever the drug files are regenerated.
+Re-run `build_summary.py` whenever the drug files are regenerated.
+`annotations.json` is an optional layer — mechanism-of-action chips appear
+wherever it exists.
 
 ## Run locally
 

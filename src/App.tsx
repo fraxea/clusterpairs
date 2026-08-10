@@ -16,6 +16,8 @@ import { Correlate } from './pages/Correlate';
 import { Connect } from './pages/Connect';
 import { Consensus } from './pages/Consensus';
 import { Guide } from './pages/Guide';
+import { Heterogeneity } from './pages/Heterogeneity';
+import { Figures } from './pages/Figures';
 
 type Route =
   | { type: 'home' }
@@ -26,6 +28,8 @@ type Route =
   | { type: 'correlate' }
   | { type: 'connect' }
   | { type: 'consensus' }
+  | { type: 'hetero' }
+  | { type: 'figures' }
   | { type: 'guide' }
   | { type: 'rank' };
 
@@ -40,6 +44,8 @@ function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
     if (path === 'correlate' || path === 'correlation') return { type: 'correlate' } as const;
     if (path === 'connect' || path === 'connectivity') return { type: 'connect' } as const;
     if (path === 'consensus') return { type: 'consensus' } as const;
+    if (path === 'hetero' || path === 'heterogeneity') return { type: 'hetero' } as const;
+    if (path === 'figures') return { type: 'figures' } as const;
     if (path === 'guide' || path === 'docs' || path === 'help') return { type: 'guide' } as const;
     if (path === 'rank' || path === 'search') return { type: 'rank' } as const;
     if (path.startsWith('pathway/')) {
@@ -110,6 +116,18 @@ function NavIcon({ kind }: { kind: string }) {
           <rect key={x} x={x} y={y} width="3.2" height={13.5 - y} rx="0.8" fill="currentColor" opacity={x === 2 ? 1 : 0.55} />
         ))}
       </svg>);
+    case 'hetero': return (
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+        <rect x="1.5" y="4" width="5" height="8" rx="1.2" fill="currentColor" opacity={0.5} />
+        <rect x="9.5" y="1.5" width="5" height="6" rx="1.2" fill="currentColor" />
+        <rect x="9.5" y="9.5" width="5" height="5" rx="1.2" fill="currentColor" opacity={0.75} />
+      </svg>);
+    case 'figures': return (
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+        <rect x="1.8" y="2.5" width="12.4" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="5.6" cy="6.2" r="1.3" fill="currentColor" />
+        <path d="M3.5 11.5 L7 8.4 L9.4 10.4 L12.5 7.6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>);
     case 'guide': return (
       <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
         <path d="M8 3.5 C6.5 2.3 4 2.3 2 3.2 V12.8 C4 11.9 6.5 11.9 8 13.1 C9.5 11.9 12 11.9 14 12.8 V3.2 C12 2.3 9.5 2.3 8 3.5 Z" {...s} />
@@ -162,8 +180,10 @@ function Shell({ route, cutoff, setCutoff, children }: {
             <NavItem href="#/correlate" icon="correlate" active={route.type === 'correlate'}>Correlate</NavItem>
             <NavItem href="#/connect" icon="connect" active={route.type === 'connect'}>Connect</NavItem>
             <NavItem href="#/consensus" icon="consensus" active={route.type === 'consensus'}>Consensus</NavItem>
+            <NavItem href="#/hetero" icon="hetero" active={route.type === 'hetero'}>Heterogeneity</NavItem>
             <NavItem href="#/rank" icon="rank" active={route.type === 'rank'}>Rank</NavItem>
             <span className="mx-1.5 h-5 w-px bg-stone-300/80" aria-hidden />
+            <NavItem href="#/figures" icon="figures" active={route.type === 'figures'}>Figures</NavItem>
             <NavItem href="#/guide" icon="guide" active={route.type === 'guide'}>Guide</NavItem>
           </nav>
           <div className="ml-auto flex items-center rounded-lg border border-stone-200 bg-white px-3 py-1.5 shadow-sm">
@@ -238,6 +258,8 @@ export default function App() {
             : route.type === 'correlate' ? 'correlation'
             : route.type === 'connect' ? 'connectivity'
             : route.type === 'consensus' ? 'consensus'
+            : route.type === 'hetero' ? 'heterogeneity'
+            : route.type === 'figures' ? 'figures'
             : route.type === 'guide' ? 'guide'
               : route.type === 'rank' ? 'rank' : null;
     document.title = name ? `${name} · ${base}` : base;
@@ -283,6 +305,8 @@ export default function App() {
               : route.type === 'correlate' ? needsSummary(summary && <Correlate key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'connect' ? needsSummary(summary && <Connect key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'consensus' ? needsSummary(summary && <Consensus manifest={manifest} summary={summary} />)
+              : route.type === 'hetero' ? <Heterogeneity manifest={manifest} />
+              : route.type === 'figures' ? needsSummary(summary && <Figures manifest={manifest} summary={summary} />)
               : route.type === 'guide' ? <Guide manifest={manifest} summary={summary} />
               : route.type === 'drug' ? (
                 <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} params={params} />

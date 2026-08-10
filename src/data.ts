@@ -2,7 +2,7 @@
 // Run build_frontend_data.py with out_dir = <app>/public/data, then
 // scripts/build_summary.py, to populate it.
 
-import type { Manifest, DrugData, DrugMeta, Summary } from './types';
+import type { Manifest, DrugData, DrugMeta, Summary, Hetero, Annotations } from './types';
 
 // Vite serves public/ at BASE_URL. If you deploy under a sub-path, this still
 // resolves correctly. (import.meta cast avoids needing vite/client types here.)
@@ -89,4 +89,22 @@ export async function loadAllDrugs(
   };
   await Promise.all(Array.from({ length: Math.min(8, metas.length) }, worker));
   return out;
+}
+
+let heteroCache: Promise<Hetero> | null = null;
+export function loadHetero(): Promise<Hetero> {
+  heteroCache ??= fetch(`${DATA_BASE}hetero.json`).then((res) => {
+    if (!res.ok) throw new Error(`Could not load hetero.json (${res.status}). Run scripts/build_summary.py.`);
+    return res.json() as Promise<Hetero>;
+  });
+  return heteroCache;
+}
+
+let annotationsCache: Promise<Annotations> | null = null;
+/** MoA annotations are an optional layer — resolves to {} when absent. */
+export function loadAnnotations(): Promise<Annotations> {
+  annotationsCache ??= fetch(`${DATA_BASE}annotations.json`)
+    .then((res) => (res.ok ? (res.json() as Promise<Annotations>) : {}))
+    .catch(() => ({}));
+  return annotationsCache;
 }
