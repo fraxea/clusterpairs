@@ -104,10 +104,10 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
         <StatTile label="Commonly divergent" value={`${model.common.size}`} sub="pathways that split clusters in >⅓ of drugs" />
       </div>
 
-      {/* Full-bleed row: breaks out of the page's max-width so both panels
-          share one row — fixed-width ranking, flexible detail whose cells
-          adapt to the remaining space. */}
-      <div className="relative left-1/2 mt-5 flex w-[calc(100vw-3rem)] max-w-[100rem] -translate-x-1/2 flex-wrap gap-4 lg:flex-nowrap">
+      {/* Same width as the stat tiles above (the page container): fixed-width
+          ranking on the left, the heatmap taking the rest and sizing its cells
+          to fit — see the availW measurement. */}
+      <div className="mt-5 flex flex-wrap gap-4 lg:flex-nowrap">
         {/* ranking — fixed column so the heatmap gets the rest */}
         <div className="w-full rounded-lg border border-stone-200 bg-white p-4 lg:w-[24rem] lg:shrink-0 lg:grow-0">
           <div className="flex items-baseline justify-between">
