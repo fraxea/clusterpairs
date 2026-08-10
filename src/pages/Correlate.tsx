@@ -2,7 +2,7 @@
 // across the drug library? Scatter (one point per drug) + OLS fit with 95%
 // confidence band + Pearson / Spearman / sign-concordance / potency-adjusted
 // statistics. Defaults to Hypoxia vs Epithelial Mesenchymal Transition.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, Summary, SummaryDrug } from '../types';
 import {
   lassoPath, olsBandAt, olsFit, partialPearsonTest, pearsonTest, signTestP, spearmanTest,
@@ -12,6 +12,7 @@ import { drugActivity, pathwayActivity } from '../significance';
 import { fmtP, pathwaySlug, setHashParams } from '../format';
 import { ramp } from '../colors';
 import { Segmented, Spinner, StatTile } from '../ui';
+import { downloadSvg } from '../export';
 import { useTip } from '../tooltip';
 
 type Metric = 'net' | 'up' | 'down' | 'act';
@@ -137,6 +138,7 @@ export function Correlate({ manifest, summary, params }: {
   manifest: Manifest; summary: Summary; params: URLSearchParams;
 }) {
   const tip = useTip();
+  const scatterRef = useRef<SVGSVGElement>(null);
   const [view, setViewRaw] = useState<View>(params.get('v') === 'lasso' ? 'lasso' : 'pair');
   const [xIdx, setXIdx] = useState(() => findPathway(manifest, params.get('x'), 'Hypoxia'));
   const [yIdx, setYIdx] = useState(() => findPathway(manifest, params.get('y'), 'Epithelial Mesenchymal Transition'));
@@ -329,6 +331,7 @@ export function Correlate({ manifest, summary, params }: {
         {/* scatter */}
         <div className="rounded-lg border border-stone-200 bg-white p-3">
           <svg
+            ref={scatterRef}
             width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="max-w-full"
             style={{ cursor: hover !== null ? 'pointer' : 'default' }}
             onMouseMove={onMove} onMouseLeave={() => { setHover(null); tip.hide(); }} onClick={onClick}
@@ -389,7 +392,17 @@ export function Correlate({ manifest, summary, params }: {
               </text>
             )}
           </svg>
-          <p className="mt-1 px-1 text-[11px] text-stone-400">{metricLabel} · reference cutoff q &lt; 0.05</p>
+          <div className="mt-1 flex items-center justify-between px-1">
+            <p className="text-[11px] text-stone-400">{metricLabel} · reference cutoff q &lt; 0.05</p>
+            <button
+              type="button"
+              onClick={() => downloadSvg(scatterRef.current, `correlation_${pathwaySlug(manifest.pathways[xIdx])}_vs_${pathwaySlug(manifest.pathways[yIdx])}`)}
+              className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-500 hover:border-stone-500"
+              title="Download this figure as SVG"
+            >
+              SVG ↓
+            </button>
+          </div>
         </div>
 
         {/* stats column */}

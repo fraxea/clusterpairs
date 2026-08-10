@@ -4,13 +4,14 @@
 // repurposing read-out). tau is the headline specificity score; each hit's
 // cosine is decomposed into the generic proliferation-stress axis (atlas PC1)
 // vs pathway-specific signal, so generic-toxicity matches are visible.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Manifest, Summary } from '../types';
 import {
   connectivity, connectivityBackground, netVectors, pc1Axis, type ConnectivityHit,
 } from '../analysis';
 import { fmtP, pathwaySlug, setHashParams } from '../format';
 import { NONSIG, ramp } from '../colors';
+import { downloadSvg } from '../export';
 import { Segmented, StatTile } from '../ui';
 import { useTip } from '../tooltip';
 
@@ -40,6 +41,7 @@ export function Connect({ manifest, summary, params }: {
   manifest: Manifest; summary: Summary; params: URLSearchParams;
 }) {
   const tip = useTip();
+  const wfRef = useRef<SVGSVGElement>(null);
   const slugs = useMemo(() => summary.drugs.map((d) => d.slug), [summary.drugs]);
   const nameBySlug = useMemo(() => new Map(manifest.drugs.map((d) => [d.slug, d.name])), [manifest.drugs]);
   const pwBySlug = useMemo(
@@ -203,6 +205,7 @@ export function Connect({ manifest, summary, params }: {
     const zero = WF_H / 2;
     return (
       <svg
+        ref={wfRef}
         width={WF_W} height={WF_H} viewBox={`0 0 ${WF_W} ${WF_H}`} className="max-w-full"
         onMouseMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
@@ -384,9 +387,19 @@ export function Connect({ manifest, summary, params }: {
 
           <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4">
             {renderWaterfall()}
-            <p className="mt-1 text-[11px] text-stone-400">
-              All {hits.length} drugs ranked by connectivity to the query · click a bar to open the drug.
-            </p>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-[11px] text-stone-400">
+                All {hits.length} drugs ranked by connectivity to the query · click a bar to open the drug.
+              </p>
+              <button
+                type="button"
+                onClick={() => downloadSvg(wfRef.current, 'connectivity_waterfall')}
+                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-500 hover:border-stone-500"
+                title="Download this figure as SVG"
+              >
+                SVG ↓
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-4">

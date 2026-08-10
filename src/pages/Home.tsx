@@ -87,6 +87,8 @@ export function Home({ manifest, summary }: { manifest: Manifest; summary: Summa
         </div>
       )}
 
+      {summary && <Highlights />}
+
       <div className="mt-5"><DirLegend /></div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -94,6 +96,77 @@ export function Home({ manifest, summary }: { manifest: Manifest; summary: Summa
           <DrugCard key={d.slug} meta={d} row={bySlug.get(d.slug)} manifest={manifest} />
         ))}
         {drugs.length === 0 && <p className="text-sm text-stone-500">No drugs match &ldquo;{q}&rdquo;.</p>}
+      </div>
+    </div>
+  );
+}
+
+// Curated entry points — each card is a finding the atlas demonstrates,
+// deep-linked to the exact configured view that shows it.
+const HIGHLIGHTS: Array<{ stat: string; title: string; desc: string; href: string; color: string }> = [
+  {
+    stat: 'r = 0.77',
+    title: 'Hypoxia and EMT move together',
+    desc: 'Across 379 drugs the two programs are co-regulated — same direction in 81% of directional calls.',
+    href: '#/correlate',
+    color: '#bc3a30',
+  },
+  {
+    stat: 'τ = 100',
+    title: 'Drug classes self-assemble',
+    desc: 'Digitoxin’s top connectivity hit is Ouabain — cardiac glycosides find each other from pathway space alone.',
+    href: '#/connect',
+    color: '#2a78d6',
+  },
+  {
+    stat: '5 of 5',
+    title: 'Steroids reverse inflammation',
+    desc: 'Query an inflammatory program: the top reversers are corticosteroids, MEK and JAK inhibitors.',
+    href: '#/connect?up=tnf-alpha-signaling-via-nf-kb,inflammatory-response,il-6-jak-stat3-signaling,complement&down=oxidative-phosphorylation',
+    color: '#6c55bd',
+  },
+  {
+    stat: '24%',
+    title: 'One shared program dominates',
+    desc: 'A quarter of the whole matrix lies on a single generic stress axis — see what remains after removing it.',
+    href: '#/consensus',
+    color: '#7b786f',
+  },
+  {
+    stat: 'J = 0.29',
+    title: 'Methods disagree more than languages',
+    desc: 'GSEA agrees with itself across Python and R (J ≈ 0.8) — but ORA and GSEA overlap far less.',
+    href: '#/drug/abemaciclib-ddf4f5?tab=methods',
+    color: '#bc3a30',
+  },
+  {
+    stat: '50 × 379',
+    title: 'The whole screen in one figure',
+    desc: 'Every drug × pathway call at a glance — clustered so mechanism blocks emerge.',
+    href: '#/atlas',
+    color: '#2a78d6',
+  },
+];
+
+function Highlights() {
+  return (
+    <div className="mt-6">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">What the atlas shows — start here</h2>
+        <a href="#/guide" className="text-xs font-medium text-emerald-700 hover:text-emerald-800">how to read the views →</a>
+      </div>
+      <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {HIGHLIGHTS.map((h) => (
+          <a
+            key={h.title} href={h.href}
+            className="group rounded-lg border border-stone-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-stone-400 hover:shadow-md"
+          >
+            <div className="font-mono text-lg font-semibold tabular-nums" style={{ color: h.color }}>{h.stat}</div>
+            <div className="mt-1 text-sm font-semibold text-stone-900 group-hover:text-stone-950">{h.title}</div>
+            <div className="mt-1 text-xs leading-relaxed text-stone-500">{h.desc}</div>
+            <div className="mt-2 text-xs font-medium text-emerald-700 opacity-0 transition group-hover:opacity-100">explore →</div>
+          </a>
+        ))}
       </div>
     </div>
   );
