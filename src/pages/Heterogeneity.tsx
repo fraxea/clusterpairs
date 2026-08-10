@@ -150,7 +150,7 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
 
         {/* detail */}
         {sel && (
-          <div className="min-w-[26rem] flex-1 rounded-lg border border-stone-200 bg-white p-4">
+          <div className="min-w-0 flex-1 basis-[30rem] rounded-lg border border-stone-200 bg-white p-5">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="truncate text-sm font-semibold text-stone-800">
                 {nameBySlug.get(sel.slug)} — cluster × pathway response
@@ -159,23 +159,26 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                 drug page →
               </a>
             </div>
-            <p className="mb-2 mt-0.5 text-xs text-stone-500">
+            <p className="mb-3 mt-0.5 text-xs text-stone-500">
               Net direction per cluster, pathways ordered by cross-cluster variability.
               Red = that subpopulation shifts the pathway up, blue = down.
             </p>
-            <table className="border-separate border-spacing-0">
-              <thead>
-                <tr>
-                  <th className="pr-2 text-left text-[10px] font-medium text-stone-400">pathway \ cluster</th>
-                  {sel.clusters.map((c) => (
-                    <th key={c} className="px-0.5 pb-1 text-center font-mono text-[10px] font-normal text-stone-500">{c}</th>
-                  ))}
-                </tr>
-              </thead>
+            {/* many-cluster drugs scroll horizontally inside the card; the
+                pathway column stays pinned so rows remain readable */}
+            <div className="overflow-x-auto pb-1.5">
+              <table className="border-separate border-spacing-0">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 z-[1] bg-white pr-3 text-left text-[11px] font-medium text-stone-400">pathway \ cluster</th>
+                    {sel.clusters.map((c) => (
+                      <th key={c} className="min-w-12 px-0.5 pb-1.5 text-center font-mono text-[11px] font-normal text-stone-500">{c}</th>
+                    ))}
+                  </tr>
+                </thead>
               <tbody>
                 {detailPaths.map((p) => (
                   <tr key={p}>
-                    <th className="max-w-52 truncate pr-2 text-left text-xs font-normal text-stone-700">
+                    <th className="sticky left-0 z-[1] max-w-60 truncate bg-white py-0.5 pr-3 text-left text-[13px] font-normal text-stone-700 shadow-[1px_0_0_#f5f5f4]">
                       <a href={`#/pathway/${pathwaySlug(manifest.pathways[p])}`} className="hover:text-emerald-800 hover:underline">
                         {manifest.pathways[p]}
                       </a>
@@ -189,9 +192,9 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                       const v = row[p];
                       const t = Math.min(1, Math.abs(v) / NET_SAT);
                       return (
-                        <td key={q} className="p-[1px]">
+                        <td key={q} className="p-[1.5px]">
                           <div
-                            className="flex h-[20px] w-9 items-center justify-center rounded-[2px] font-mono text-[9px] tabular-nums"
+                            className="flex h-7 w-12 items-center justify-center rounded-[3px] font-mono text-[11px] tabular-nums"
                             style={{
                               background: netColor(v),
                               color: Math.abs(v) < 0.01 ? '#a9a69c' : textOn(v > 0 ? 'up' : 'down', 0.12 + 0.88 * t),
@@ -214,8 +217,9 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                     })}
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
             <p className="mt-3 text-[11px] text-stone-400">
               Caveat: clusters can differ in baseline composition (cell line / state), so divergence reads as
               context-dependent response — genotype-selective pharmacology — rather than induced heterogeneity.
