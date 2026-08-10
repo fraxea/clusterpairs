@@ -4,7 +4,7 @@
 // intratumor-heterogeneity literature). Uniform killers sit at the other end.
 // All numbers from hetero.json: per-query-cluster net directions, signed
 // streams only, fixed reference cutoff.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Hetero, Manifest } from '../types';
 import { loadHetero } from '../data';
 import { heteroProfile, heteroStats } from '../analysis';
@@ -55,6 +55,19 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
     [model, selected],
   );
 
+  // The two panels always sit side by side; the heatmap measures its card and
+  // shrinks cells (48px -> 30px floor) so every cluster fits without scrolling.
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [availW, setAvailW] = useState(0);
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    setAvailW(el.clientWidth);
+    const ro = new ResizeObserver((es) => setAvailW(es[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hetero]);
+
   if (err) return <p className="text-sm text-stone-500">hetero.json missing — rerun scripts/build_summary.py. ({err})</p>;
   if (!hetero || !model) return <Spinner label="Loading cluster profiles…" />;
 
@@ -91,12 +104,12 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
         <StatTile label="Commonly divergent" value={`${model.common.size}`} sub="pathways that split clusters in >⅓ of drugs" />
       </div>
 
-      {/* Full-bleed row: breaks out of the page's max-width so the detail
-          heatmap can show all clusters (up to 14) without scrolling; the
-          in-card scroller remains only as a fallback on narrow windows. */}
-      <div className="relative left-1/2 mt-5 flex w-[calc(100vw-3rem)] max-w-[100rem] -translate-x-1/2 flex-wrap gap-4">
-        {/* ranking — flexes to fill the row when the detail card wraps below */}
-        <div className="min-w-[24rem] flex-1 basis-[26rem] rounded-lg border border-stone-200 bg-white p-4">
+      {/* Full-bleed row: breaks out of the page's max-width so both panels
+          share one row — fixed-width ranking, flexible detail whose cells
+          adapt to the remaining space. */}
+      <div className="relative left-1/2 mt-5 flex w-[calc(100vw-3rem)] max-w-[100rem] -translate-x-1/2 flex-wrap gap-4 lg:flex-nowrap">
+        {/* ranking — fixed column so the heatmap gets the rest */}
+        <div className="w-full rounded-lg border border-stone-200 bg-white p-4 lg:w-[24rem] lg:shrink-0 lg:grow-0">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold text-stone-800">Drugs by cluster disagreement</h3>
             <button
@@ -152,11 +165,16 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
         </div>
 
         {/* detail */}
-        {sel && (
-          /* min-w-fit: the card is always at least as wide as its heatmap —
-             beside the list when there's room, wrapping to a full row when
-             not — so all clusters are visible without scrolling. */
-          <div className="min-w-fit flex-1 rounded-lg border border-stone-200 bg-white p-5 max-lg:min-w-0">
+        {sel && (() => {
+          // pathway column ~264px incl. padding; 3px per-cell gap; 30px floor
+          const nC = sel.clusters.length;
+          const cellW = availW > 0
+            ? Math.max(30, Math.min(48, Math.floor((availW - 264) / nC) - 3))
+            : 48;
+          const cellH = cellW >= 42 ? 28 : 24;
+          const cellFont = cellW >= 40 ? 11 : 10;
+          return (
+          <div className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white p-5">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="truncate text-sm font-semibold text-stone-800">
                 {nameBySlug.get(sel.slug)} — cluster × pathway response
@@ -171,13 +189,13 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
             </p>
             {/* many-cluster drugs scroll horizontally inside the card; the
                 pathway column stays pinned so rows remain readable */}
-            <div className="overflow-x-auto pb-1.5">
+            <div ref={measureRef} className="overflow-x-auto pb-1.5">
               <table className="border-separate border-spacing-0">
                 <thead>
                   <tr>
                     <th className="sticky left-0 z-[1] bg-white pr-3 text-left text-[11px] font-medium text-stone-400">pathway \ cluster</th>
                     {sel.clusters.map((c) => (
-                      <th key={c} className="min-w-12 px-0.5 pb-1.5 text-center font-mono text-[11px] font-normal text-stone-500">{c}</th>
+                      <th key={c} className="px-0.5 pb-1.5 text-center font-mono text-[11px] font-normal text-stone-500" style={{ minWidth: cellW }}>{c}</th>
                     ))}
                   </tr>
                 </thead>
@@ -200,8 +218,9 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                       return (
                         <td key={q} className="p-[1.5px]">
                           <div
-                            className="flex h-7 w-12 items-center justify-center rounded-[3px] font-mono text-[11px] tabular-nums"
+                            className="flex items-center justify-center rounded-[3px] font-mono tabular-nums"
                             style={{
+                              width: cellW, height: cellH, fontSize: cellFont,
                               background: netColor(v),
                               color: Math.abs(v) < 0.01 ? '#a9a69c' : textOn(v > 0 ? 'up' : 'down', 0.12 + 0.88 * t),
                             }}
@@ -232,7 +251,8 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
               {' '}{fmtPct(sel.divergent.length / manifest.pathways.length)} of pathways split this drug&rsquo;s clusters.
             </p>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
