@@ -168,10 +168,23 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
     const el = headerRef.current;
     if (!el) return;
     const set = () => document.documentElement.style.setProperty('--hdr', `${Math.round(el.getBoundingClientRect().height)}px`);
+    // Measure after layout settles: a resize fires many times while the nav
+    // re-wraps, and reading mid-sequence latches a transient height.
+    let raf = 0; let timer = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      raf = requestAnimationFrame(set);
+      timer = window.setTimeout(set, 200);
+    };
     set();
-    const ro = new ResizeObserver(set);
+    const ro = new ResizeObserver(schedule);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(raf); window.clearTimeout(timer);
+      ro.disconnect(); window.removeEventListener('resize', schedule);
+    };
   }, []);
 
   return (
@@ -318,19 +331,19 @@ export default function App() {
   return (
     <TooltipProvider>
       <Shell route={route}>
-        {route.type === 'atlas' ? needsSummary(summary && <Atlas manifest={manifest} summary={summary} params={params} />)
+        {route.type === 'atlas' ? needsSummary(summary && <Atlas key={params.toString()} manifest={manifest} summary={summary} params={params} />)
           : route.type === 'pathways' ? needsSummary(summary && <PathwaysIndex manifest={manifest} summary={summary} />)
-            : route.type === 'pathway' ? needsSummary(summary && <PathwayPage manifest={manifest} summary={summary} slug={route.slug} params={params} />)
+            : route.type === 'pathway' ? needsSummary(summary && <PathwayPage key={route.slug + params.toString()} manifest={manifest} summary={summary} slug={route.slug} params={params} />)
               : route.type === 'correlate' ? needsSummary(summary && <Correlate key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'connect' ? needsSummary(summary && <Connect key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'consensus' ? needsSummary(summary && <Consensus manifest={manifest} summary={summary} />)
-              : route.type === 'hetero' ? <Heterogeneity manifest={manifest} params={params} />
+              : route.type === 'hetero' ? <Heterogeneity key={params.toString()} manifest={manifest} params={params} />
               : route.type === 'figures' ? needsSummary(summary && <Figures manifest={manifest} summary={summary} />)
               : route.type === 'guide' ? <Guide manifest={manifest} summary={summary} />
               : route.type === 'drug' ? (
                 <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
               )
-                : route.type === 'rank' ? <Rank manifest={manifest} summary={summary} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
+                : route.type === 'rank' ? <Rank key={params.toString()} manifest={manifest} summary={summary} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
                   : <Home manifest={manifest} summary={summary} />}
       </Shell>
     </TooltipProvider>
