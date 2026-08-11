@@ -257,12 +257,14 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
           n={1} title="The consensus perturbation signature" svgRef={f1Ref}
           caption={`Mean net direction per Hallmark pathway across all ${nets.length} drugs (dot), with 95% confidence
             intervals (whiskers). Right column: sign consistency among responding drugs (|net| > 2%); ★ marks
-            Bonferroni-significant departures from a 50:50 sign split (exact binomial). The screen shares a stereotyped
+            departures from a 50:50 sign split at BH q < 0.05 (exact binomial, Benjamini–Hochberg across the 50 pathways). The screen shares a stereotyped
             program — mitotic/proliferation and hypoxia programs up, estrogen-response programs down.`}
           csv={() => downloadCsv(consensus.map((r) => ({
             pathway: manifest.pathways[r.p], mean_net: r.mean.toFixed(4), ci95: r.ci.toFixed(4),
             responders: r.resp, consistency: Number.isFinite(r.consist) ? (r.consist as number).toFixed(3) : '',
             binomial_p: Number.isFinite(r.pBinom) ? r.pBinom.toExponential(2) : '',
+            bh_q: Number.isFinite(r.pBinom) ? r.q.toExponential(2) : '',
+            starred: Number.isFinite(r.pBinom) && r.q < 0.05 ? 'yes' : 'no',
           })), 'figure_1_consensus')}
         >
           {renderF1()}

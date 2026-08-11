@@ -165,10 +165,11 @@ export function Atlas({ manifest, summary, params }: {
         )}
       </div>
 
-      {/* No card around the matrix: the sticky label band shares the page
-          background, so nothing reads as an overflowing bar; the matrix sizes
-          itself to the viewport and only very narrow windows scroll. */}
-      <div className="mt-4 overflow-x-auto">
+      {/* w-fit, NOT overflow-x-auto: a scroll container would become the
+          sticky band's scrollport (overflow-x:auto coerces overflow-y to auto)
+          and the pathway labels would stop sticking. The matrix sizes itself to
+          the viewport; only very narrow windows scroll the page. */}
+      <div className="mt-4 w-fit">
         <OverviewMatrix
           manifest={manifest} summary={summary} mode={mode} order={order}
           colOrder={colOrder} cellW={cellW}

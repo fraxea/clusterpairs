@@ -68,26 +68,37 @@ const LABS: Record<RampName, Lab[]> = Object.fromEntries(
 ) as Record<RampName, Lab[]>;
 
 // Cache sampled colors — canvas draws hit this hard.
-const cache = new Map<string, string>();
+const rgbCache = new Map<string, [number, number, number]>();
+const cssCache = new Map<string, string>();
 
-/** Sample ramp `name` at t in [0,1] (0 = lightest). */
-export function ramp(name: RampName, t: number): string {
+/** Sample ramp `name` at t in [0,1] (0 = lightest) as an [r,g,b] triple. */
+export function rampRgb(name: RampName, t: number): [number, number, number] {
   const tc = Math.min(1, Math.max(0, t));
   const key = `${name}:${Math.round(tc * 200)}`;
-  const hit = cache.get(key);
+  const hit = rgbCache.get(key);
   if (hit) return hit;
   const labs = LABS[name];
   const x = (Math.round(tc * 200) / 200) * (labs.length - 1);
   const i = Math.min(labs.length - 2, Math.floor(x));
   const f = x - i;
   const A = labs[i]; const B = labs[i + 1];
-  const [r, g, b] = labToRgb([
+  const out = labToRgb([
     A[0] + (B[0] - A[0]) * f,
     A[1] + (B[1] - A[1]) * f,
     A[2] + (B[2] - A[2]) * f,
   ]);
+  rgbCache.set(key, out);
+  return out;
+}
+
+/** Sample ramp `name` at t in [0,1] (0 = lightest). */
+export function ramp(name: RampName, t: number): string {
+  const key = `${name}:${Math.round(Math.min(1, Math.max(0, t)) * 200)}`;
+  const hit = cssCache.get(key);
+  if (hit) return hit;
+  const [r, g, b] = rampRgb(name, t);
   const out = `rgb(${r},${g},${b})`;
-  cache.set(key, out);
+  cssCache.set(key, out);
   return out;
 }
 
@@ -95,9 +106,22 @@ export function ramp(name: RampName, t: number): string {
 export const rampGradient = (name: RampName): string =>
   `linear-gradient(to right, ${STOPS[name].join(', ')})`;
 
-/** Ink or white, whichever reads on top of ramp(name, t). */
-export function textOn(_name: RampName, t: number): string {
-  return t >= 0.45 ? '#ffffff' : '#3d3c38';
+const INK_TEXT = '#3d3c38';
+const relLum = ([r, g, b]: [number, number, number]): number =>
+  0.2126 * srgbToLinear(r / 255) + 0.7152 * srgbToLinear(g / 255) + 0.0722 * srgbToLinear(b / 255);
+const contrast = (a: number, b: number): number =>
+  (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+const INK_LUM = relLum([0x3d, 0x3c, 0x38]);
+
+/**
+ * Ink or white, whichever actually reads on ramp(name, t) — measured, not a
+ * fixed lightness threshold. A single cutoff was wrong as soon as a ramp was
+ * re-stepped: on the low-chroma `uns` ramp white does not clear 4.5:1 until
+ * t ≈ 0.77, so a 0.45 switch printed unreadable digits over a third of it.
+ */
+export function textOn(name: RampName, t: number): string {
+  const bg = relLum(rampRgb(name, t));
+  return contrast(bg, 1) >= contrast(bg, INK_LUM) ? '#ffffff' : INK_TEXT;
 }
 
 // -------------------------------------------------- domain-specific scales ----
