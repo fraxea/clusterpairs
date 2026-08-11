@@ -51,7 +51,11 @@ function labToRgb([L, a, b]: Lab): [number, number, number] {
 const STOPS = {
   up: ['#fbe3e0', '#f0a99f', '#dd6a5c', '#bc3a30', '#8c1f18', '#5f120e'],
   down: ['#dcebfc', '#9ec5f4', '#5598e7', '#2a78d6', '#1c5cab', '#0d366b'],
-  uns: ['#e9e4f9', '#c0b3ec', '#957fd8', '#6c55bd', '#4a3aa7', '#2f2371'],
+  // Low-chroma on purpose: "unsigned" means the signed methods did not call
+  // this cell, and it is 58% of the landscape. At full chroma the absence of
+  // directional evidence outweighed every real result, so this ramp keeps its
+  // lightness ladder (intensity still reads as activity) but recedes to ground.
+  uns: ['#edecf3', '#d5d1e4', '#b6b0cf', '#948db5', '#716b91', '#4c4767'],
   ink: ['#f1f0ec', '#d4d2ca', '#a9a69c', '#7b786f', '#514f49', '#26251f'],
 } as const;
 export type RampName = keyof typeof STOPS;
@@ -140,3 +144,18 @@ export function dirCellColor(cell: DirCell): string {
 /** Direction-free activity cell. */
 export const activityColor = (a: number): string =>
   a <= 0 ? NONSIG : ramp('ink', activityT(a));
+
+// ------------------------------------------------- net-direction encoding ----
+// |net| = |up − down| / tests at which the red/blue strips saturate. Shared by
+// Connectivity, Heterogeneity and Consensus so the same value always reads as
+// the same colour (these pages used to disagree: 0.3 vs 0.4).
+export const NET_SAT = 0.4;
+/** Below this |net| a cell is drawn as "no net direction" rather than a tint. */
+export const NET_ZERO = 0.01;
+
+export const netT = (v: number): number =>
+  0.12 + 0.88 * Math.min(1, Math.abs(v) / NET_SAT);
+
+/** One net-direction cell: red = net up, blue = net down. */
+export const netColor = (v: number): string =>
+  Math.abs(v) < NET_ZERO ? NONSIG : ramp(v > 0 ? 'up' : 'down', netT(v));

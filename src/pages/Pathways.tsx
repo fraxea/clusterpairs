@@ -5,8 +5,8 @@ import type { Manifest, Summary, SummaryDrug } from '../types';
 import { pathwayActivity } from '../significance';
 import { dirCellColor, ramp } from '../colors';
 import { Segmented, StatTile } from '../ui';
-import { fmtCompact, fmtPct, msigdbUrl, pathwaySlug } from '../format';
-import { useTip } from '../tooltip';
+import { fmtCompact, fmtPct, msigdbUrl, pathwaySlug, setHashParams } from '../format';
+import { tipBind, useTip } from '../tooltip';
 
 // A drug "responds strongly" in a pathway when ≥35% of its (stream ×
 // cluster-pair) tests are significant — chosen from the empirical distribution
@@ -52,7 +52,7 @@ export function PathwaysIndex({ manifest, summary }: { manifest: Manifest; summa
                 </div>
                 <span className="w-16 text-right font-mono text-xs tabular-nums text-stone-500">{r.active} drugs</span>
               </div>
-              <div className="mt-2 flex items-center gap-2 text-[10px] text-stone-400">
+              <div className="mt-2 flex items-center gap-2 text-[10px] text-stone-600">
                 <span className="inline-flex h-1.5 w-24 overflow-hidden rounded-full bg-stone-100" title="Balance of up vs down calls across all drugs">
                   <span style={{ width: `${upFrac * 100}%`, background: ramp('up', 0.55) }} />
                   <span style={{ width: `${(1 - upFrac) * 100}%`, background: ramp('down', 0.55) }} />
@@ -93,12 +93,11 @@ function ActivityHistogram({ values, total }: { values: number[]; total: number 
               key={i}
               x={i * bw + 1} y={H - h} width={bw - 2} height={Math.max(n > 0 ? 1.5 : 0, h)}
               rx={1.5} fill="#514f49"
-              onMouseMove={(e) => tip.show(e, (
+              {...tipBind(tip, () => ((
                 <div className="font-mono text-[11px] tabular-nums">
                   {n} drugs at {Math.round((i / BINS) * hi * 100)}–{Math.round(((i + 1) / BINS) * hi * 100)}% activity
                 </div>
-              ))}
-              onMouseLeave={tip.hide}
+              )))}
             />
           );
         })}
@@ -113,9 +112,14 @@ function ActivityHistogram({ values, total }: { values: number[]; total: number 
 // ----------------------------------------------------------------- detail ----
 type PwSort = 'total' | 'up' | 'down' | 'mixed';
 
-export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; summary: Summary; slug: string }) {
+export function PathwayPage({ manifest, summary, slug, params }: {
+  manifest: Manifest; summary: Summary; slug: string; params: URLSearchParams;
+}) {
   const p = useMemo(() => manifest.pathways.findIndex((n) => pathwaySlug(n) === slug), [manifest.pathways, slug]);
-  const [sort, setSort] = useState<PwSort>('total');
+  const initSort = params.get('sort');
+  const [sort, setSortRaw] = useState<PwSort>(
+    initSort === 'up' || initSort === 'down' || initSort === 'mixed' ? initSort : 'total');
+  const setSort = (v: PwSort) => { setSortRaw(v); setHashParams({ sort: v === 'total' ? null : v }); };
   const [showAll, setShowAll] = useState(false);
   const tip = useTip();
 
@@ -199,7 +203,7 @@ export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; s
       {/* axis header */}
       <div className="mt-6 grid grid-cols-[13rem_1fr_7rem] items-center gap-x-4 px-1">
         <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">Drug</span>
-        <div className="relative h-5 font-mono text-[10px] tabular-nums text-stone-400">
+        <div className="relative h-5 font-mono text-[10px] tabular-nums text-stone-600">
           <span className="absolute left-0">▼ {fmtPct(axisMax)} down</span>
           <span className="absolute left-1/2 -translate-x-1/2">0</span>
           <span className="absolute right-0">up {fmtPct(axisMax)} ▲</span>
@@ -217,19 +221,18 @@ export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; s
               key={d.slug}
               href={`#/drug/${encodeURIComponent(d.slug)}`}
               className={`grid grid-cols-[13rem_1fr_7rem] items-center gap-x-4 px-3 py-1 hover:bg-stone-50 ${i > 0 ? 'border-t border-stone-100' : ''}`}
-              onMouseMove={(e) => tip.show(e, (
+              {...tipBind(tip, () => ((
                 <div>
                   <div className="font-medium text-stone-900">{drugName}</div>
                   <div className="mt-0.5 font-mono text-[11px] tabular-nums">
                     {d.up[p]} up · {d.down[p]} down · {d.uns[p]} unsigned of {d.tested[p]} tests
                   </div>
-                  <div className="mt-0.5 text-[10px] text-stone-400">{d.n_ref}×{d.n_query} cluster pairs · q &lt; 0.05</div>
+                  <div className="mt-0.5 text-[10px] text-stone-600">{d.n_ref}×{d.n_query} cluster pairs · q &lt; 0.05</div>
                 </div>
-              ))}
-              onMouseLeave={tip.hide}
+              )))}
             >
               <span className="truncate text-sm text-stone-800">
-                <span className="mr-2 inline-block w-6 text-right font-mono text-[10px] text-stone-400">{i + 1}</span>
+                <span className="mr-2 inline-block w-6 text-right font-mono text-[10px] text-stone-600">{i + 1}</span>
                 {drugName}
               </span>
               <span className="relative block h-[18px]">
@@ -263,7 +266,7 @@ export function PathwayPage({ manifest, summary, slug }: { manifest: Manifest; s
         </button>
       )}
 
-      <p className="mt-3 text-[11px] text-stone-400">
+      <p className="mt-3 text-[11px] text-stone-600">
         Bars are the fraction of a drug&rsquo;s (stream × cluster-pair) tests calling this pathway significantly
         up (<span style={{ color: dirCellColor({ a: 1, kind: 'up' }) }}>red</span>) or down
         (<span style={{ color: dirCellColor({ a: 1, kind: 'down' }) }}>blue</span>) at q &lt; 0.05.

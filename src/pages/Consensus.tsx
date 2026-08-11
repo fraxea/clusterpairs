@@ -7,14 +7,13 @@
 // explain, i.e. the specific pharmacology.
 import { useMemo, useState } from 'react';
 import type { Manifest, Summary } from '../types';
-import { netVectors, pearson, signTestP, tQuantile975 } from '../analysis';
+import { consensusRows, netVectors, pearson, RESPONDER_MIN } from '../analysis';
 import { drugActivity } from '../significance';
 import { fmtPct, pathwaySlug } from '../format';
 import { ramp } from '../colors';
 import { StatTile } from '../ui';
-import { useTip } from '../tooltip';
+import { tipBind, useTip } from '../tooltip';
 
-const RESPONDER_MIN = 0.02; // |net| below this = not responding in that pathway
 const SD_FLOOR = 0.01;      // z-score guard for near-silent pathways
 
 export function Consensus({ manifest, summary }: { manifest: Manifest; summary: Summary }) {
@@ -26,31 +25,8 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
     const nets = netVectors(summary.drugs);
     const n = nets.length;
     const nP = manifest.pathways.length;
-    const tCrit = tQuantile975(n - 1);
 
-    // per-pathway consensus: mean, sd, CI, sign consistency among responders
-    const rows = Array.from({ length: nP }, (_, p) => {
-      let sum = 0;
-      for (const v of nets) sum += v[p];
-      const mean = sum / n;
-      let sq = 0;
-      for (const v of nets) sq += (v[p] - mean) ** 2;
-      const sd = Math.sqrt(sq / (n - 1));
-      let resp = 0; let up = 0;
-      for (const v of nets) {
-        if (Math.abs(v[p]) > RESPONDER_MIN) { resp += 1; if (v[p] > 0) up += 1; }
-      }
-      const k = Math.max(up, resp - up);
-      const pBinom = resp > 0 ? signTestP(k, resp) : NaN;
-      return { p, mean, sd, ci: (tCrit * sd) / Math.sqrt(n), resp, consist: resp > 0 ? k / resp : NaN, majorityUp: up * 2 >= resp, pBinom, q: 1 };
-    });
-    // BH over the 50 binomial tests
-    const byP = [...rows].filter((r) => Number.isFinite(r.pBinom)).sort((a, b) => a.pBinom - b.pBinom);
-    let prev = 1;
-    for (let i = byP.length - 1; i >= 0; i -= 1) {
-      prev = Math.min(prev, (byP[i].pBinom * byP.length) / (i + 1));
-      byP[i].q = prev;
-    }
+    const rows = consensusRows(nets, nP);
 
     // Energy captured by the consensus DIRECTION: project each drug onto the
     // unit consensus vector û = mean/‖mean‖ and compare squared projections to
@@ -152,7 +128,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
             Mean net direction across all {model.n} drugs, 95% CI; consistency = share of responding drugs
             (|net| &gt; {RESPONDER_MIN}) with the majority sign, ★ = BH q &lt; 0.05 (exact binomial vs 50:50).
           </p>
-          <div className="grid grid-cols-[13rem_1fr_5.5rem] items-center gap-x-3 text-[11px] text-stone-400">
+          <div className="grid grid-cols-[13rem_1fr_5.5rem] items-center gap-x-3 text-[11px] text-stone-600">
             <span>pathway</span>
             <div className="relative h-4 font-mono tabular-nums">
               <span className="absolute left-0">−{(maxAbs * 100).toFixed(0)}%</span>
@@ -165,7 +141,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
             <a
               key={r.p} href={`#/pathway/${pathwaySlug(manifest.pathways[r.p])}`}
               className="grid grid-cols-[13rem_1fr_5.5rem] items-center gap-x-3 rounded px-1 py-0.5 hover:bg-stone-50"
-              onMouseMove={(e) => tip.show(e, (
+              {...tipBind(tip, () => ((
                 <div>
                   <div className="font-medium text-stone-900">{manifest.pathways[r.p]}</div>
                   <div className="mt-0.5 font-mono text-[11px] tabular-nums">
@@ -173,8 +149,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
                     {r.resp} responders · {Number.isFinite(r.consist) ? `${Math.round(100 * r.consist)}% ${r.majorityUp ? 'up' : 'down'}` : '—'}
                   </div>
                 </div>
-              ))}
-              onMouseLeave={tip.hide}
+              )))}
             >
               <span className="truncate text-sm text-stone-700">{manifest.pathways[r.p]}</span>
               <svg width={FW} height={ROW_H} viewBox={`0 0 ${FW} ${ROW_H}`} className="max-w-full">
@@ -231,7 +206,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
           </svg>
           {([['Most generic', model.loo.slice(0, 6)], ['Most distinctive', [...model.loo].reverse().slice(0, 6)]] as const).map(([label, list]) => (
             <div key={label} className="mt-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">{label}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-600">{label}</div>
               <div className="mt-1 space-y-0.5">
                 {list.map((l) => (
                   <a
@@ -261,7 +236,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
               key={`${s.slug}:${s.p}`} href={`#/drug/${encodeURIComponent(s.slug)}`}
               className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-stone-50"
             >
-              <span className="w-5 shrink-0 text-right font-mono text-[10px] text-stone-400">{i + 1}</span>
+              <span className="w-5 shrink-0 text-right font-mono text-[10px] text-stone-600">{i + 1}</span>
               <span
                 className="w-12 shrink-0 rounded-[3px] px-1 text-center font-mono text-[11px] tabular-nums"
                 style={{ background: ramp(s.z > 0 ? 'up' : 'down', 0.55), color: '#fff' }}
@@ -277,7 +252,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
             </a>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-stone-400">
+        <p className="mt-3 text-[11px] text-stone-600">
           The consensus is a property of this compendium (these cell lines, DMSO-cluster referencing,
           q &lt; 0.05) — it describes what perturbation does here, not a universal drug response.
         </p>

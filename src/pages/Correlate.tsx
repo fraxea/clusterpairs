@@ -13,7 +13,7 @@ import { fmtP, pathwaySlug, setHashParams } from '../format';
 import { ramp } from '../colors';
 import { Segmented, Spinner, StatTile } from '../ui';
 import { downloadSvg } from '../export';
-import { useTip } from '../tooltip';
+import { tipBind, useTip } from '../tooltip';
 
 type Metric = 'net' | 'up' | 'down' | 'act';
 type View = 'pair' | 'lasso';
@@ -249,7 +249,7 @@ export function Correlate({ manifest, summary, params }: {
             {manifest.pathways[xIdx]}: {(p.x * 100).toFixed(1)}%<br />
             {manifest.pathways[yIdx]}: {(p.y * 100).toFixed(1)}%
           </div>
-          <div className="mt-0.5 text-[10px] text-stone-400">click → drug page</div>
+          <div className="mt-0.5 text-[10px] text-stone-600">click → drug page</div>
         </div>
       ));
     } else tip.hide();
@@ -393,7 +393,7 @@ export function Correlate({ manifest, summary, params }: {
             )}
           </svg>
           <div className="mt-1 flex items-center justify-between px-1">
-            <p className="text-[11px] text-stone-400">{metricLabel} · reference cutoff q &lt; 0.05</p>
+            <p className="text-[11px] text-stone-600">{metricLabel} · reference cutoff q &lt; 0.05</p>
             <button
               type="button"
               onClick={() => downloadSvg(scatterRef.current, `correlation_${pathwaySlug(manifest.pathways[xIdx])}_vs_${pathwaySlug(manifest.pathways[yIdx])}`)}
@@ -631,14 +631,13 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
               return (
                 <g
                   key={s.p} className="cursor-pointer"
-                  onMouseMove={(e) => tip.show(e, (
+                  {...tipBind(tip, () => ((
                     <div>
                       <div className="font-medium text-stone-900">{manifest.pathways[s.p]}</div>
                       <div className="mt-0.5 font-mono text-[11px] tabular-nums">β = {s.b.toFixed(3)} (standardized)</div>
-                      <div className="mt-0.5 text-[10px] text-stone-400">click → pair scatter vs {manifest.pathways[yIdx]}</div>
+                      <div className="mt-0.5 text-[10px] text-stone-600">click → pair scatter vs {manifest.pathways[yIdx]}</div>
                     </div>
-                  ))}
-                  onMouseLeave={tip.hide}
+                  )))}
                   onClick={() => onInspect(s.p)}
                 >
                   <rect x={0} y={y - ROW_H / 2} width={NAME_W + BAR_W} height={ROW_H} fill="transparent" />

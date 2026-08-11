@@ -1,6 +1,6 @@
 // ui.tsx — shared chrome components: controls, legends, small bits.
 import type { ReactNode } from 'react';
-import { rampGradient, NONSIG } from './colors';
+import { rampGradient, NET_SAT, NONSIG } from './colors';
 import { HATCH } from './format';
 
 export function NavLink({ href, active, children }: { href: string; active: boolean; children: ReactNode }) {
@@ -36,7 +36,7 @@ export function CutoffSlider({ cutoff, onChange, className = '' }: {
       className={`group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5 py-2 shadow-sm ${className}`}
       title="Significance threshold — this view re-thresholds live; each tick is one decade of q"
     >
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600">
         cutoff
       </span>
       <span className="relative flex h-5 w-56 items-center">
@@ -88,7 +88,7 @@ export function StatTile({ label, value, sub }: { label: string; value: string; 
     <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
       <div className="text-xs text-stone-500">{label}</div>
       <div className="mt-0.5 text-2xl font-semibold tracking-tight text-stone-900">{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-stone-400">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[11px] text-stone-600">{sub}</div>}
     </div>
   );
 }
@@ -101,7 +101,7 @@ function GradientBar({ name }: { name: 'up' | 'down' | 'uns' | 'ink' }) {
 /** Legend for significance-strength grids (color = q-value depth + direction). */
 export function SigLegend({ unsignedOnly }: { unsignedOnly?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-600">
       {!unsignedOnly && (
         <>
           <span className="flex items-center gap-1.5"><GradientBar name="up" /> up</span>
@@ -115,7 +115,7 @@ export function SigLegend({ unsignedOnly }: { unsignedOnly?: boolean }) {
       <span className="flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-sm border border-stone-200" style={{ background: HATCH }} /> not tested
       </span>
-      <span className="text-stone-400">darker = smaller q (saturates at q ≈ 1e-30)</span>
+      <span className="text-stone-500">darker = smaller q (saturates at q ≈ 1e-30)</span>
     </div>
   );
 }
@@ -123,14 +123,34 @@ export function SigLegend({ unsignedOnly }: { unsignedOnly?: boolean }) {
 /** Legend for count grids (color = fraction of DMSO clusters significant). */
 export function CountLegend({ nRef, kind }: { nRef: number; kind: 'up' | 'down' | 'uns' }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-600">
       <span className="flex items-center gap-1.5">
         <GradientBar name={kind} /> 1 → all {nRef} DMSO clusters
       </span>
       <span className="flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-sm" style={{ background: NONSIG }} /> none
       </span>
-      <span className="text-stone-400">cell = # DMSO clusters where the pathway is significant</span>
+      <span className="text-stone-500">cell = # DMSO clusters where the pathway is significant</span>
+    </div>
+  );
+}
+
+/**
+ * Legend for net-direction encodings (Connectivity strips, Heterogeneity
+ * heatmap). The saturation label is generated from the shared NET_SAT constant
+ * so the key can never drift from the colours it explains.
+ */
+export function NetLegend({ note }: { note?: string }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-600">
+      <span className="flex items-center gap-1.5"><GradientBar name="up" /> net up</span>
+      <span className="flex items-center gap-1.5"><GradientBar name="down" /> net down</span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: NONSIG }} /> no net direction
+      </span>
+      <span className="text-stone-500">
+        saturates at |net| = {Math.round(NET_SAT * 100)}%{note ? ` · ${note}` : ''}
+      </span>
     </div>
   );
 }
@@ -138,7 +158,7 @@ export function CountLegend({ nRef, kind }: { nRef: number; kind: 'up' | 'down' 
 /** Legend for direction-free activity cells (atlas Activity mode). */
 export function ActLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-600">
       <span className="flex items-center gap-1.5">
         <GradientBar name="ink" /> fraction of tests significant at q &lt; 0.05
       </span>
@@ -152,7 +172,7 @@ export function ActLegend() {
 /** Legend for summary-derived direction cells (atlas, strips, pathway bars). */
 export function DirLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-stone-600">
       <span className="flex items-center gap-1.5"><GradientBar name="up" /> up</span>
       <span className="flex items-center gap-1.5"><GradientBar name="down" /> down</span>
       <span className="flex items-center gap-1.5"><GradientBar name="ink" /> mixed</span>
@@ -160,7 +180,7 @@ export function DirLegend() {
       <span className="flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-sm" style={{ background: NONSIG }} /> n.s.
       </span>
-      <span className="text-stone-400">intensity = fraction of tests significant at q &lt; 0.05</span>
+      <span className="text-stone-500">intensity = fraction of tests significant at q &lt; 0.05</span>
     </div>
   );
 }

@@ -247,7 +247,7 @@ function DrugCard({ meta, row, manifest }: {
             );
           })}
         </div>
-        <span className="shrink-0 font-mono text-[10px] text-stone-400">
+        <span className="shrink-0 font-mono text-[10px] text-stone-600">
           {meta.n_ref}×{meta.n_query} · {meta.streams_present.length}s
         </span>
       </div>

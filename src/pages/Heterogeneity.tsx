@@ -8,25 +8,23 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Hetero, Manifest } from '../types';
 import { loadHetero } from '../data';
 import { heteroProfile, heteroStats } from '../analysis';
-import { fmtPct, pathwaySlug } from '../format';
-import { NONSIG, ramp, textOn } from '../colors';
-import { Spinner, StatTile } from '../ui';
+import { fmtPct, pathwaySlug, setHashParams } from '../format';
+import { NET_SAT, netColor, ramp, textOn } from '../colors';
+import { NetLegend, Spinner, StatTile } from '../ui';
 import { downloadCsv } from '../export';
-import { useTip } from '../tooltip';
+import { tipBind, useTip } from '../tooltip';
 
-const NET_SAT = 0.4;
-const netColor = (v: number): string =>
-  Math.abs(v) < 0.01 ? NONSIG : ramp(v > 0 ? 'up' : 'down', 0.12 + 0.88 * Math.min(1, Math.abs(v) / NET_SAT));
 
 // A pathway divergent in more than a third of drugs is "commonly divergent" —
 // proliferation programs split clusters for half the library, so flag them.
 const COMMON_DIV = 1 / 3;
 
-export function Heterogeneity({ manifest }: { manifest: Manifest }) {
+export function Heterogeneity({ manifest, params }: { manifest: Manifest; params: URLSearchParams }) {
   const tip = useTip();
   const [hetero, setHetero] = useState<Hetero | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelectedRaw] = useState<string | null>(params.get('d'));
+  const setSelected = (slug: string) => { setSelectedRaw(slug); setHashParams({ d: slug }); };
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
@@ -135,7 +133,7 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                   className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${
                     active ? 'bg-stone-100 ring-1 ring-stone-300' : 'hover:bg-stone-50'}`}
                 >
-                  <span className="w-6 shrink-0 text-right font-mono text-[10px] text-stone-400">{i + 1}</span>
+                  <span className="w-6 shrink-0 text-right font-mono text-[10px] text-stone-600">{i + 1}</span>
                   <span className="w-44 shrink-0 truncate text-sm text-stone-800">{nameBySlug.get(r.slug)}</span>
                   <span className="h-2 flex-1 rounded-[3px] bg-stone-100">
                     <span
@@ -183,17 +181,18 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                 drug page →
               </a>
             </div>
-            <p className="mb-3 mt-0.5 text-xs text-stone-500">
+            <p className="mt-0.5 text-xs text-stone-500">
               Net direction per cluster, pathways ordered by cross-cluster variability.
               Red = that subpopulation shifts the pathway up, blue = down.
             </p>
+            <div className="mb-3 mt-2"><NetLegend /></div>
             {/* many-cluster drugs scroll horizontally inside the card; the
                 pathway column stays pinned so rows remain readable */}
             <div ref={measureRef} className="overflow-x-auto pb-1.5">
               <table className="border-separate border-spacing-0">
                 <thead>
                   <tr>
-                    <th className="sticky left-0 z-[1] bg-white pr-3 text-left text-[11px] font-medium text-stone-400">pathway \ cluster</th>
+                    <th className="sticky left-0 z-[1] bg-white pr-3 text-left text-[11px] font-medium text-stone-600">pathway \ cluster</th>
                     {sel.clusters.map((c) => (
                       <th key={c} className="px-0.5 pb-1.5 text-center font-mono text-[11px] font-normal text-stone-500" style={{ minWidth: cellW }}>{c}</th>
                     ))}
@@ -224,7 +223,7 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                               background: netColor(v),
                               color: Math.abs(v) < 0.01 ? '#a9a69c' : textOn(v > 0 ? 'up' : 'down', 0.12 + 0.88 * t),
                             }}
-                            onMouseMove={(e) => tip.show(e, (
+                            {...tipBind(tip, () => ((
                               <div>
                                 <div className="font-medium text-stone-900">{manifest.pathways[p]}</div>
                                 <div className="text-stone-500">drug cluster {sel.clusters[q]}</div>
@@ -232,8 +231,7 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                                   net {(100 * v).toFixed(0)}% · {sel.prof.support[q][p]} directional tests
                                 </div>
                               </div>
-                            ))}
-                            onMouseLeave={tip.hide}
+                            )))}
                           >
                             {Math.abs(v) >= 0.05 ? `${v > 0 ? '+' : ''}${Math.round(v * 100)}` : ''}
                           </div>
@@ -245,7 +243,7 @@ export function Heterogeneity({ manifest }: { manifest: Manifest }) {
                 </tbody>
               </table>
             </div>
-            <p className="mt-3 text-[11px] text-stone-400">
+            <p className="mt-3 text-[11px] text-stone-600">
               Caveat: clusters can differ in baseline composition (cell line / state), so divergence reads as
               context-dependent response — genotype-selective pharmacology — rather than induced heterogeneity.
               {' '}{fmtPct(sel.divergent.length / manifest.pathways.length)} of pathways split this drug&rsquo;s clusters.

@@ -15,7 +15,7 @@ import {
 import { countColor, countColorT, jaccardColor, NONSIG, ramp, sigColor, textOn } from '../colors';
 import { CountLegend, CutoffSlider, EmptyState, Segmented, SigLegend } from '../ui';
 import { fmtPct, fmtQ, HATCH, pathwaySlug, setHashParams, streamKey, streamLabel } from '../format';
-import { useTip } from '../tooltip';
+import { tipBind, useTip } from '../tooltip';
 
 type Tab = 'pathways' | 'clusters' | 'methods';
 type View = 'pairwise' | 'ovr_drug' | 'ovr_dmso';
@@ -313,12 +313,11 @@ function Sparkline({ nlps, thr }: { nlps: number[]; thr: number }) {
   return (
     <svg
       width={W} height={H} className="block"
-      onMouseMove={(e) => tip.show(e, (
+      {...tipBind(tip, () => ((
         <div className="font-mono text-[11px] tabular-nums">
           significant pairs: {q05} at q&lt;0.05 · {q3} at 1e-3 · {q6} at 1e-6
         </div>
-      ))}
-      onMouseLeave={tip.hide}
+      )))}
     >
       <line x1={tx} y1={0} x2={tx} y2={H} stroke="#047857" strokeWidth={1} />
       <polyline points={pts} fill="none" stroke="#a9a69c" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
@@ -366,7 +365,7 @@ function PairwiseGrid({ manifest, data, rows, dir, isSigned, thr }: {
         {isSigned && <> · <span style={{ color: '#bc3a30' }}>▲{cell.countUp}</span> <span style={{ color: '#2a78d6' }}>▼{cell.countDown}</span></>}
       </div>
       <RefStrip cell={cell} data={data} thr={thr} />
-      <div className="mt-1 text-[10px] text-stone-400">per-DMSO-cluster strength at the current cutoff</div>
+      <div className="mt-1 text-[10px] text-stone-600">per-DMSO-cluster strength at the current cutoff</div>
     </div>
   );
 
@@ -377,7 +376,7 @@ function PairwiseGrid({ manifest, data, rows, dir, isSigned, thr }: {
           <th className="sticky left-0 top-0 z-[3] w-64 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-stone-400 shadow-[1px_0_0_#e7e5e4,0_1px_0_#e7e5e4]">
             Pathway
           </th>
-          <th className="sticky top-0 z-[2] bg-white px-2 py-2 text-left text-[10px] font-medium text-stone-400 shadow-[0_1px_0_#e7e5e4]">
+          <th className="sticky top-0 z-[2] bg-white px-2 py-2 text-left text-[10px] font-medium text-stone-600 shadow-[0_1px_0_#e7e5e4]">
             n vs threshold
           </th>
           {data.query_clusters.map((c) => (
@@ -406,8 +405,7 @@ function PairwiseGrid({ manifest, data, rows, dir, isSigned, thr }: {
                   <div
                     className="mx-auto flex h-6 w-9 items-center justify-center rounded-[2px] font-mono text-xs tabular-nums"
                     style={{ background: countColor(count, nRef, kind), color: textOn(kind, t) }}
-                    onMouseMove={(e) => tip.show(e, cellTip(row, cell, qi))}
-                    onMouseLeave={tip.hide}
+                    {...tipBind(tip, () => (cellTip(row, cell, qi)))}
                   >
                     {count > 0 ? count : ''}
                   </div>
@@ -419,7 +417,7 @@ function PairwiseGrid({ manifest, data, rows, dir, isSigned, thr }: {
       </tbody>
       <tfoot>
         <tr>
-          <th className="sticky left-0 z-[1] bg-white px-3 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-stone-400 shadow-[1px_0_0_#f5f5f4]">
+          <th className="sticky left-0 z-[1] bg-white px-3 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-stone-600 shadow-[1px_0_0_#f5f5f4]">
             column total
           </th>
           <td />
@@ -470,11 +468,17 @@ function OvrGrid({ manifest, data, rows, cond, thr }: {
               </a>
             </th>
             {row.perCluster.map((cell, ci) => (
-              <td key={ci} className="p-[2px]">
+              <td
+                key={ci} className="p-[2px]"
+                /* the fill is the only visual encoding — name it for AT so
+                   table navigation reads the value, not "blank" */
+                aria-label={`${manifest.pathways[row.pathway]}, cluster ${clusters[ci]}: ${
+                  cell ? `${fmtQ(cell.nlp)}${cell.sign > 0 ? ', up' : cell.sign < 0 ? ', down' : ''}` : 'not tested'}`}
+              >
                 <div
                   className="mx-auto h-6 w-9 rounded-[2px]"
                   style={{ background: cell ? sigColor(cell.nlp, cell.sign, thr) : HATCH }}
-                  onMouseMove={(e) => tip.show(e, cell ? (
+                  {...tipBind(tip, () => (cell ? (
                     <div>
                       <div className="font-medium text-stone-900">{manifest.pathways[row.pathway]}</div>
                       <div className="text-stone-500">cluster {clusters[ci]} vs rest</div>
@@ -484,8 +488,7 @@ function OvrGrid({ manifest, data, rows, cond, thr }: {
                     </div>
                   ) : (
                     <div className="text-stone-500">not in this stream&rsquo;s output</div>
-                  ))}
-                  onMouseLeave={tip.hide}
+                  )))}
                 />
               </td>
             ))}
@@ -525,16 +528,16 @@ function ClustersTab({ manifest, data, cutoff, present, onSelectPair }: {
             <table className="border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="pr-1 text-right font-mono text-[9px] font-normal text-stone-400">r\q</th>
+                  <th className="pr-1 text-right font-mono text-[9px] font-normal text-stone-600">r\q</th>
                   {data.query_clusters.map((c) => (
-                    <th key={c} className="px-0.5 pb-0.5 text-center font-mono text-[9px] font-normal text-stone-400">{c}</th>
+                    <th key={c} className="px-0.5 pb-0.5 text-center font-mono text-[9px] font-normal text-stone-600">{c}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {m.counts.map((rowArr, r) => (
                   <tr key={r}>
-                    <th className="pr-1 text-right font-mono text-[9px] font-normal text-stone-400">{data.ref_clusters[r]}</th>
+                    <th className="pr-1 text-right font-mono text-[9px] font-normal text-stone-600">{data.ref_clusters[r]}</th>
                     {rowArr.map((n, q) => {
                       const t = n <= 0 ? 0 : 0.08 + 0.92 * Math.min(1, n / nP);
                       const untested = m.tested[r][q] === 0;
@@ -546,17 +549,16 @@ function ClustersTab({ manifest, data, cutoff, present, onSelectPair }: {
                             style={untested
                               ? { background: HATCH }
                               : { background: n > 0 ? ramp('ink', t) : NONSIG, color: textOn('ink', t) }}
-                            onMouseMove={(e) => tip.show(e, (
+                            {...tipBind(tip, () => ((
                               <div>
                                 <div className="font-medium text-stone-900">{streamLabel(s)}</div>
                                 <div className="text-stone-500">DMSO {data.ref_clusters[r]} vs drug {data.query_clusters[q]}</div>
                                 <div className="mt-0.5 font-mono text-[11px] tabular-nums">
                                   {untested ? 'not in output' : `${n}/${nP} pathways significant`}
                                 </div>
-                                <div className="mt-0.5 text-[10px] text-stone-400">click → method agreement</div>
+                                <div className="mt-0.5 text-[10px] text-stone-600">click → method agreement</div>
                               </div>
-                            ))}
-                            onMouseLeave={tip.hide}
+                            )))}
                             onClick={() => onSelectPair(r, q)}
                           >
                             {n > 0 ? n : ''}
@@ -663,11 +665,15 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                       </a>
                     </th>
                     {row.cells.map((cell, si) => (
-                      <td key={si} className="p-[2px]">
+                      <td
+                        key={si} className="p-[2px]"
+                        aria-label={`${manifest.pathways[row.pathway]}, ${streamLabel(manifest.streams[si])}: ${
+                          cell ? `${fmtQ(cell.nlp)}${cell.sign > 0 ? ', up' : cell.sign < 0 ? ', down' : ''}` : 'not in output'}`}
+                      >
                         <div
                           className="mx-auto h-6 w-14 rounded-[2px]"
                           style={{ background: cell ? sigColor(cell.nlp, cell.sign, thr) : HATCH }}
-                          onMouseMove={(e) => tip.show(e, cell ? (
+                          {...tipBind(tip, () => (cell ? (
                             <div>
                               <div className="font-medium text-stone-900">{manifest.pathways[row.pathway]}</div>
                               <div className="text-stone-500">{streamLabel(manifest.streams[si])}</div>
@@ -677,8 +683,7 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                             </div>
                           ) : (
                             <div className="text-stone-500">not in this stream&rsquo;s output</div>
-                          ))}
-                          onMouseLeave={tip.hide}
+                          )))}
                         />
                       </td>
                     ))}
@@ -719,10 +724,9 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                           <div
                             className="flex h-9 w-14 items-center justify-center rounded-[2px] font-mono text-[10px] tabular-nums"
                             style={{ background: ramp('ink', conc.sizes[i] > 0 ? t : 0), color: textOn('ink', t) }}
-                            onMouseMove={(e) => tip.show(e, (
+                            {...tipBind(tip, () => ((
                               <div className="font-mono text-[11px] tabular-nums">{streamLabel(s)}: {conc.sizes[i]} significant calls</div>
-                            ))}
-                            onMouseLeave={tip.hide}
+                            )))}
                           >
                             {conc.sizes[i]}
                           </div>
@@ -740,7 +744,7 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                             color: nan ? '#a9a69c' : textOn('ink', 0.06 + 0.94 * v),
                             boxShadow: crossLang(i, j) ? 'inset 0 0 0 1.5px #047857' : undefined,
                           }}
-                          onMouseMove={(e) => tip.show(e, (
+                          {...tipBind(tip, () => ((
                             <div>
                               <div className="font-medium text-stone-900">{streamLabel(s)} ∩ {streamLabel(s2)}</div>
                               <div className="mt-0.5 font-mono text-[11px] tabular-nums">
@@ -748,8 +752,7 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                                   : `${conc.inter[i][j]} shared / ${conc.union[i][j]} union · J = ${v.toFixed(2)}`}
                               </div>
                             </div>
-                          ))}
-                          onMouseLeave={tip.hide}
+                          )))}
                         >
                           {nan ? '—' : v.toFixed(2)}
                         </div>

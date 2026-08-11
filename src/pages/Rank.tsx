@@ -7,14 +7,27 @@ import { loadAllDrugs } from '../data';
 import { rankDrugs, thrFromCutoff, type DrugRank } from '../significance';
 import { ramp } from '../colors';
 import { Chip, CutoffSlider, Spinner } from '../ui';
-import { fmtCompact, streamLabel } from '../format';
-import { useTip } from '../tooltip';
+import { fmtCompact, pathwaySlug, setHashParams, streamLabel } from '../format';
+import { tipBind, useTip } from '../tooltip';
 
-export function Rank({ manifest, summary, cutoff, setCutoff }: {
-  manifest: Manifest; summary: Summary | null; cutoff: number; setCutoff: (c: number) => void;
+export function Rank({ manifest, summary, cutoff, setCutoff, params }: {
+  manifest: Manifest; summary: Summary | null; cutoff: number;
+  setCutoff: (c: number) => void; params: URLSearchParams;
 }) {
   const [q, setQ] = useState('');
-  const [selected, setSelected] = useState<number[]>([]); // pathway indices
+  // the chosen pathway set IS the view — mirror it into the hash so a ranking
+  // can be shared or reloaded
+  const [selected, setSelectedRaw] = useState<number[]>(() =>
+    (params.get('pw') ?? '').split(',')
+      .map((sl) => manifest.pathways.findIndex((n) => pathwaySlug(n) === sl))
+      .filter((i) => i >= 0));
+  const setSelected = (next: number[] | ((s: number[]) => number[])) => {
+    setSelectedRaw((prev) => {
+      const v = typeof next === 'function' ? next(prev) : next;
+      setHashParams({ pw: v.length ? v.map((i) => pathwaySlug(manifest.pathways[i])).join(',') : null });
+      return v;
+    });
+  };
 
   // exact mode — results carry the cutoff they were computed at, so a later
   // slider move can never relabel them; the banner re-offers a re-rank instead.
@@ -168,7 +181,7 @@ export function Rank({ manifest, summary, cutoff, setCutoff }: {
                   <a
                     key={r.d.slug} href={`#/drug/${encodeURIComponent(r.d.slug)}`}
                     className="block rounded-lg border border-stone-200 bg-white px-3 py-2 hover:border-stone-400"
-                    onMouseMove={(e) => tip.show(e, (
+                    {...tipBind(tip, () => ((
                       <div>
                         <div className="font-medium text-stone-900">{name}</div>
                         <div className="mt-0.5 font-mono text-[11px] tabular-nums">
@@ -177,8 +190,7 @@ export function Rank({ manifest, summary, cutoff, setCutoff }: {
                           <span style={{ color: '#6c55bd' }}>◆{r.uns}</span> significant tests
                         </div>
                       </div>
-                    ))}
-                    onMouseLeave={tip.hide}
+                    )))}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="truncate text-sm font-medium text-stone-900">

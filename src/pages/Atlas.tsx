@@ -8,7 +8,7 @@ import {
   averageLinkageOrder, drugFingerprints, pathwayActivityMatrix, pc1Scores, pearson,
 } from '../analysis';
 import { ActLegend, DirLegend, Segmented } from '../ui';
-import { pathwaySlug } from '../format';
+import { pathwaySlug, setHashParams } from '../format';
 import { GUTTER, OVERHANG, OverviewMatrix, type AtlasMode } from '../viz/OverviewMatrix';
 
 type SortKind = { kind: 'activity' } | { kind: 'name' } | { kind: 'cluster' } | { kind: 'pathway'; p: number };
@@ -28,11 +28,33 @@ function useCellW(nP: number): number {
   return w;
 }
 
-export function Atlas({ manifest, summary }: { manifest: Manifest; summary: Summary }) {
-  const [mode, setMode] = useState<AtlasMode>('dir');
-  const [sort, setSort] = useState<SortKind>({ kind: 'activity' });
-  const [clusterCols, setClusterCols] = useState(false);
+export function Atlas({ manifest, summary, params }: {
+  manifest: Manifest; summary: Summary; params: URLSearchParams;
+}) {
   const nP = manifest.pathways.length;
+  const pwIdx = (slug: string | null): number =>
+    slug ? manifest.pathways.findIndex((n) => pathwaySlug(n) === slug) : -1;
+
+  // view state is mirrored into the hash so a configured Landscape is shareable
+  const [mode, setModeRaw] = useState<AtlasMode>(params.get('mode') === 'act' ? 'act' : 'dir');
+  const [sort, setSortRaw] = useState<SortKind>(() => {
+    const p = pwIdx(params.get('p'));
+    if (p >= 0) return { kind: 'pathway', p };
+    const k = params.get('sort');
+    return k === 'name' || k === 'cluster' ? { kind: k } : { kind: 'activity' };
+  });
+  const [clusterCols, setClusterColsRaw] = useState(params.get('cols') === '1');
+
+  const setMode = (m: AtlasMode) => { setModeRaw(m); setHashParams({ mode: m === 'dir' ? null : m }); };
+  const setClusterCols = (v: boolean) => { setClusterColsRaw(v); setHashParams({ cols: v ? '1' : null }); };
+  const setSort = (v: SortKind) => {
+    setSortRaw(v);
+    setHashParams({
+      sort: v.kind === 'activity' || v.kind === 'pathway' ? null : v.kind,
+      p: v.kind === 'pathway' ? pathwaySlug(manifest.pathways[v.p]) : null,
+    });
+  };
+
   const cellW = useCellW(nP);
 
   const nameBySlug = useMemo(
@@ -103,6 +125,20 @@ export function Atlas({ manifest, summary }: { manifest: Manifest; summary: Summ
             value={sort.kind === 'pathway' ? 'activity' : sort.kind}
             onChange={(v) => setSort({ kind: v as 'activity' | 'name' | 'cluster' })}
           />
+          {/* the rotated column labels are canvas-only; this select is the
+              keyboard/screen-reader route to the same sort */}
+          <label className="flex items-center gap-1.5 text-xs text-stone-600">
+            <span className="sr-only">Sort rows by pathway</span>
+            <select
+              value={sort.kind === 'pathway' ? sort.p : ''}
+              onChange={(e) => setSort(e.target.value === '' ? { kind: 'activity' } : { kind: 'pathway', p: Number(e.target.value) })}
+              className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700"
+              aria-label="Sort rows by pathway"
+            >
+              <option value="">Sort by pathway…</option>
+              {manifest.pathways.map((n, i) => <option key={i} value={i}>{n}</option>)}
+            </select>
+          </label>
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-stone-600" title="Order pathway columns by co-response clustering (average linkage on 1 − r)">
             <input
               type="checkbox" checked={clusterCols}
@@ -132,7 +168,7 @@ export function Atlas({ manifest, summary }: { manifest: Manifest; summary: Summ
       {/* No card around the matrix: the sticky label band shares the page
           background, so nothing reads as an overflowing bar; the matrix sizes
           itself to the viewport and only very narrow windows scroll. */}
-      <div className="mt-4 w-fit">
+      <div className="mt-4 overflow-x-auto">
         <OverviewMatrix
           manifest={manifest} summary={summary} mode={mode} order={order}
           colOrder={colOrder} cellW={cellW}

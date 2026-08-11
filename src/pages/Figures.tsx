@@ -4,8 +4,8 @@
 import { useMemo, useRef } from 'react';
 import type { Manifest, Summary } from '../types';
 import {
-  connectivity, connectivityBackground, netVectors, olsBandAt, olsFit,
-  pc1Axis, pearsonTest, signTestP, tQuantile975,
+  connectivity, connectivityBackground, consensusRows, netVectors,
+  olsBandAt, olsFit, pc1Axis, pearsonTest,
 } from '../analysis';
 import { fmtCompact, pathwaySlug, streamLabel } from '../format';
 import { ramp } from '../colors';
@@ -55,28 +55,10 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
 
   // ---------------- Fig 1: consensus forest (all 50 pathways) ----------------
   const f1Ref = useRef<SVGSVGElement>(null);
-  const consensus = useMemo(() => {
-    const n = nets.length;
-    const nP = manifest.pathways.length;
-    const tCrit = tQuantile975(n - 1);
-    return Array.from({ length: nP }, (_, p) => {
-      let sum = 0;
-      for (const v of nets) sum += v[p];
-      const mean = sum / n;
-      let sq = 0; let resp = 0; let up = 0;
-      for (const v of nets) {
-        sq += (v[p] - mean) ** 2;
-        if (Math.abs(v[p]) > 0.02) { resp += 1; if (v[p] > 0) up += 1; }
-      }
-      const sd = Math.sqrt(sq / (n - 1));
-      const k = Math.max(up, resp - up);
-      return {
-        p, mean, ci: (tCrit * sd) / Math.sqrt(n), resp,
-        consist: resp > 0 ? k / resp : NaN,
-        pBinom: resp > 0 ? signTestP(k, resp) : NaN,
-      };
-    }).sort((a, b) => Math.abs(b.mean) - Math.abs(a.mean));
-  }, [nets, manifest.pathways.length]);
+  const consensus = useMemo(
+    () => [...consensusRows(nets, manifest.pathways.length)].sort((a, b) => Math.abs(b.mean) - Math.abs(a.mean)),
+    [nets, manifest.pathways.length],
+  );
 
   const renderF1 = () => {
     const rowH = 15.5; const top = 26; const left = 218; const plotW = 300; const right = 70;
@@ -104,7 +86,7 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
               />
               <text x={W - 6} y={y + 3} fontSize={9.5} fill={MUTED} textAnchor="end" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {Number.isFinite(r.consist) ? `${Math.round(100 * (r.consist as number))}%` : '—'}
-                {r.pBinom < 0.05 / 50 ? ' ★' : ''}
+                {r.q < 0.05 ? ' ★' : ''}
               </text>
             </g>
           );

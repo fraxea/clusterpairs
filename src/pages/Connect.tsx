@@ -11,17 +11,12 @@ import {
 } from '../analysis';
 import { fmtP, pathwaySlug, setHashParams } from '../format';
 import { loadAnnotations } from '../data';
-import { NONSIG, ramp } from '../colors';
+import { netColor, ramp } from '../colors';
 import { downloadSvg } from '../export';
-import { Segmented, StatTile } from '../ui';
-import { useTip } from '../tooltip';
+import { NetLegend, Segmented, StatTile } from '../ui';
+import { tipBind, useTip } from '../tooltip';
 
 type Mode = 'drug' | 'custom';
-
-const NET_SAT = 0.3; // |net| where strip colors saturate
-
-const netColor = (v: number): string =>
-  v === 0 ? NONSIG : ramp(v > 0 ? 'up' : 'down', 0.12 + 0.88 * Math.min(1, Math.abs(v) / NET_SAT));
 
 const shortName = (n: string): string => (n.length > 13 ? `${n.slice(0, 12)}…` : n);
 
@@ -145,7 +140,7 @@ export function Connect({ manifest, summary, params }: {
     <div className="min-w-[26rem] flex-1 rounded-lg border border-stone-200 bg-white p-4">
       <div className="flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-stone-800">{title}</h3>
-        <span className="text-[11px] text-stone-400">τ in bold when |τ| ≥ 95</span>
+        <span className="text-[11px] text-stone-600">τ in bold when |τ| ≥ 95</span>
       </div>
       {rows.length === 0 && <p className="mt-3 text-sm text-stone-500">None on this side.</p>}
       <div className="mt-2 space-y-1">
@@ -156,7 +151,7 @@ export function Connect({ manifest, summary, params }: {
             <a
               key={slug} href={`#/drug/${encodeURIComponent(slug)}`}
               className="block rounded-md px-2 py-1.5 hover:bg-stone-50"
-              onMouseMove={(e) => tip.show(e, (
+              {...tipBind(tip, () => ((
                 <div>
                   <div className="font-medium text-stone-900">{nameBySlug.get(slug)}</div>
                   <div className="mt-0.5 font-mono text-[11px] tabular-nums">
@@ -165,19 +160,18 @@ export function Connect({ manifest, summary, params }: {
                   <div className="mt-0.5 text-[11px]">
                     generic axis {h.generic.toFixed(2)} · specific {h.specific.toFixed(2)}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-stone-400">
+                  <div className="mt-0.5 text-[10px] text-stone-600">
                     driven by {h.contrib.map((c) => manifest.pathways[c.pathway]).join(' · ')}
                   </div>
                 </div>
-              ))}
-              onMouseLeave={tip.hide}
+              )))}
             >
               <div className="flex items-center gap-2">
-                <span className="w-5 shrink-0 text-right font-mono text-[10px] text-stone-400">{i + 1}</span>
+                <span className="w-5 shrink-0 text-right font-mono text-[10px] text-stone-600">{i + 1}</span>
                 <span className="w-40 shrink-0">
                   <span className="block truncate text-sm text-stone-800">{nameBySlug.get(slug)}</span>
                   {ann[slug]?.moa?.[0] && (
-                    <span className="block truncate text-[10px] leading-tight text-stone-400">{ann[slug].moa[0]}</span>
+                    <span className="block truncate text-[10px] leading-tight text-stone-600">{ann[slug].moa[0]}</span>
                   )}
                 </span>
                 <span className="w-44 shrink-0">{renderStrip(vecs[h.target], 'h-2')}</span>
@@ -358,13 +352,14 @@ export function Connect({ manifest, summary, params }: {
 
         {!empty && (
           <div className="mt-3">
-            <div className="mb-1 flex items-baseline justify-between text-[11px] text-stone-400">
+            <div className="mb-1 flex items-baseline justify-between text-[11px] text-stone-600">
               <span>query signature — pathways ordered by |net|, hover for names</span>
               <span className="font-mono tabular-nums">
                 ‖q‖ = {qNorm.toFixed(2)} · {qStrong} pathways with |net| &gt; 0.05
               </span>
             </div>
             {renderStrip(query, 'h-2.5')}
+            <div className="mt-2"><NetLegend note="strips below share this scale" /></div>
           </div>
         )}
         {!empty && mode === 'drug' && qNorm < 0.2 && (
@@ -396,7 +391,7 @@ export function Connect({ manifest, summary, params }: {
           <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4">
             {renderWaterfall()}
             <div className="mt-1 flex items-center justify-between">
-              <p className="text-[11px] text-stone-400">
+              <p className="text-[11px] text-stone-600">
                 All {hits.length} drugs ranked by connectivity to the query · click a bar to open the drug.
               </p>
               <button

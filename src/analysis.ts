@@ -683,3 +683,57 @@ export function heteroStats(prof: HeteroProfile): HeteroStats {
   }
   return { dispersion, divergent, sd };
 }
+
+// ============================== consensus ===================================
+// The generic perturbation response: per pathway, the mean net direction across
+// the library with its 95% CI, plus how consistently the responding drugs agree
+// on a sign (exact binomial vs 50:50, BH-adjusted across the pathway set).
+// Shared by the Consensus tab and the Figures page so a figure and its live
+// view can never disagree about which pathways earn a star.
+
+/** |net| above which a drug counts as "responding" in a pathway. */
+export const RESPONDER_MIN = 0.02;
+
+export interface ConsensusRow {
+  p: number;
+  mean: number;
+  sd: number;
+  ci: number;          // half-width of the 95% CI on the mean
+  resp: number;        // drugs responding in this pathway
+  consist: number;     // share of responders sharing the majority sign
+  majorityUp: boolean;
+  pBinom: number;      // exact two-sided binomial vs 50:50
+  q: number;           // BH-adjusted pBinom across the pathway set
+}
+
+export function consensusRows(nets: Float64Array[], nP: number): ConsensusRow[] {
+  const n = nets.length;
+  const tCrit = tQuantile975(n - 1);
+  const rows: ConsensusRow[] = Array.from({ length: nP }, (_, p) => {
+    let sum = 0;
+    for (const v of nets) sum += v[p];
+    const mean = sum / n;
+    let sq = 0; let resp = 0; let up = 0;
+    for (const v of nets) {
+      sq += (v[p] - mean) ** 2;
+      if (Math.abs(v[p]) > RESPONDER_MIN) { resp += 1; if (v[p] > 0) up += 1; }
+    }
+    const sd = Math.sqrt(sq / (n - 1));
+    const k = Math.max(up, resp - up);
+    return {
+      p, mean, sd, ci: (tCrit * sd) / Math.sqrt(n), resp,
+      consist: resp > 0 ? k / resp : NaN,
+      majorityUp: up * 2 >= resp,
+      pBinom: resp > 0 ? signTestP(k, resp) : NaN,
+      q: 1,
+    };
+  });
+  // Benjamini–Hochberg over the pathways that were actually tested
+  const byP = rows.filter((r) => Number.isFinite(r.pBinom)).sort((a, b) => a.pBinom - b.pBinom);
+  let prev = 1;
+  for (let i = byP.length - 1; i >= 0; i -= 1) {
+    prev = Math.min(prev, (byP[i].pBinom * byP.length) / (i + 1));
+    byP[i].q = prev;
+  }
+  return rows;
+}

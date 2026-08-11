@@ -1,11 +1,12 @@
 // App.tsx — shell, hash routing, and boot loading (manifest + summary).
 // Data is precomputed by build_frontend_data.py (+ scripts/build_summary.py)
 // and served from public/data/.
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Manifest, Summary } from './types';
 import { configureUnsignedStreams, loadManifest, loadSummary } from './data';
 import { EmptyState, Spinner } from './ui';
+import { setHashParams } from './format';
 import { TooltipProvider } from './tooltip';
 import { Home } from './pages/Home';
 import { Atlas } from './pages/Atlas';
@@ -62,9 +63,16 @@ function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
 }
 
 const CUTOFF_KEY = 'tahoe.cutoff';
-function initialCutoff(): number {
-  const v = Number(window.localStorage.getItem(CUTOFF_KEY));
-  return v >= 1e-6 && v <= 0.1 ? v : 0.05;
+const validCutoff = (v: number): boolean => v >= 1e-6 && v <= 0.1;
+/**
+ * The threshold changes every number on a drug page, so a shared link must
+ * carry it: the hash wins, localStorage is only the fallback for a fresh visit.
+ */
+function initialCutoff(params: URLSearchParams): number {
+  const fromUrl = Number(params.get('q'));
+  if (validCutoff(fromUrl)) return fromUrl;
+  const stored = Number(window.localStorage.getItem(CUTOFF_KEY));
+  return validCutoff(stored) ? stored : 0.05;
 }
 
 // 14px stroke icons for the nav — one small geometric mark per view.
@@ -153,21 +161,35 @@ function NavItem({ href, active, icon, children }: {
 }
 
 function Shell({ route, children }: { route: Route; children: ReactNode }) {
+  // Publish the real header height as --hdr; the Landscape's sticky label band
+  // reads it, so the band still lands flush when the nav wraps to two rows.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--hdr', `${Math.round(el.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    // min-w-fit: when a wide view (the atlas matrix) forces horizontal page
-    // scroll, the background and header still span the full content width.
-    <div className="min-h-screen min-w-fit bg-[#f7f7f5] text-stone-900">
+    // No min-w-fit here: it applied to every route and made ordinary pages
+    // (headings, prose) wider than the viewport on small screens. The one
+    // genuinely wide view — the Landscape matrix — owns its own scroller.
+    <div className="min-h-screen bg-[#f7f7f5] text-stone-900">
       {/* signature hairline: the four data colors */}
       <div className="h-[3px] w-full" style={{
         background: 'linear-gradient(to right, #bc3a30 0 25%, #2a78d6 25% 50%, #6c55bd 50% 75%, #7b786f 75% 100%)',
       }} />
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-[#f7f7f5]/92 backdrop-blur">
+      <header ref={headerRef} className="sticky top-0 z-10 border-b border-stone-200 bg-[#f7f7f5]/92 backdrop-blur">
         <div className="mx-auto flex min-h-[3.5rem] max-w-[90rem] flex-wrap items-center gap-x-4 gap-y-1 px-5 py-1.5">
           <a href="#/" className="flex items-center gap-2.5 pr-2">
             <LogoMark />
             <span className="leading-tight">
               <span className="block text-sm font-semibold tracking-tight text-stone-900">Tahoe</span>
-              <span className="block text-[10px] leading-none text-stone-400">drug–pathway atlas</span>
+              <span className="block text-[10px] leading-none text-stone-600">drug–pathway atlas</span>
             </span>
           </a>
           <nav className="flex flex-wrap items-center gap-0.5">
@@ -187,7 +209,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-5 py-7">{children}</main>
-      <footer className="mx-auto max-w-7xl px-5 pb-8 pt-2 text-[11px] text-stone-400">
+      <footer className="mx-auto max-w-7xl px-5 pb-8 pt-2 text-[11px] text-stone-600">
         Pathway enrichment atlas · significance is BH-adjusted per stream · cross-drug views use the fixed
         reference cutoff q &lt; 0.05; drug pages and Rank carry their own live threshold ·{' '}
         <a href="#/guide" className="text-emerald-700 hover:text-emerald-800">guide</a>
@@ -212,12 +234,14 @@ export default function App() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [{ route, params }, setRoute] = useState(() => parseRoute(window.location.hash));
-  const [cutoff, setCutoffRaw] = useState(initialCutoff);
+  const [cutoff, setCutoffRaw] = useState(() => initialCutoff(params));
   const deferredCutoff = useDeferredValue(cutoff);
 
   const setCutoff = (c: number) => {
     setCutoffRaw(c);
     window.localStorage.setItem(CUTOFF_KEY, String(c));
+    // only the two views that own the slider carry q in their link
+    setHashParams({ q: Math.abs(c - 0.05) < 1e-9 ? null : String(c) });
   };
 
   useEffect(() => {
@@ -294,19 +318,19 @@ export default function App() {
   return (
     <TooltipProvider>
       <Shell route={route}>
-        {route.type === 'atlas' ? needsSummary(summary && <Atlas manifest={manifest} summary={summary} />)
+        {route.type === 'atlas' ? needsSummary(summary && <Atlas manifest={manifest} summary={summary} params={params} />)
           : route.type === 'pathways' ? needsSummary(summary && <PathwaysIndex manifest={manifest} summary={summary} />)
-            : route.type === 'pathway' ? needsSummary(summary && <PathwayPage manifest={manifest} summary={summary} slug={route.slug} />)
+            : route.type === 'pathway' ? needsSummary(summary && <PathwayPage manifest={manifest} summary={summary} slug={route.slug} params={params} />)
               : route.type === 'correlate' ? needsSummary(summary && <Correlate key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'connect' ? needsSummary(summary && <Connect key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'consensus' ? needsSummary(summary && <Consensus manifest={manifest} summary={summary} />)
-              : route.type === 'hetero' ? <Heterogeneity manifest={manifest} />
+              : route.type === 'hetero' ? <Heterogeneity manifest={manifest} params={params} />
               : route.type === 'figures' ? needsSummary(summary && <Figures manifest={manifest} summary={summary} />)
               : route.type === 'guide' ? <Guide manifest={manifest} summary={summary} />
               : route.type === 'drug' ? (
                 <DrugPage key={route.slug} manifest={manifest} summary={summary} slug={route.slug} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
               )
-                : route.type === 'rank' ? <Rank manifest={manifest} summary={summary} cutoff={deferredCutoff} setCutoff={setCutoff} />
+                : route.type === 'rank' ? <Rank manifest={manifest} summary={summary} cutoff={deferredCutoff} setCutoff={setCutoff} params={params} />
                   : <Home manifest={manifest} summary={summary} />}
       </Shell>
     </TooltipProvider>

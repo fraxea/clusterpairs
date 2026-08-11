@@ -191,7 +191,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
           <span style={{ color: '#2a78d6' }}>▼{d.down[p]}</span>{' '}
           <span style={{ color: '#6c55bd' }}>◆{d.uns[p]}</span>
         </div>
-        <div className="mt-0.5 text-[10px] text-stone-400">click → drug page</div>
+        <div className="mt-0.5 text-[10px] text-stone-600">click → drug page</div>
       </div>
     ));
   };
@@ -216,7 +216,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
     tip.show(e, (
       <div>
         <div className="font-medium text-stone-900">{manifest.pathways[colOrder[c]]}</div>
-        <div className="mt-0.5 text-[10px] text-stone-400">click to sort drugs by this pathway</div>
+        <div className="mt-0.5 text-[10px] text-stone-600">click to sort drugs by this pathway</div>
       </div>
     ));
   };
@@ -230,7 +230,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
     // The layout is exactly as wide as the matrix; the header canvas alone
     // overflows to the right so the last rotated labels have room.
     <div style={{ width: matrixW }}>
-      <div className="sticky top-[57px] z-[5] border-b border-stone-200 bg-[#f7f7f5]" style={{ width: matrixW }}>
+      <div className="sticky top-[var(--hdr,57px)] z-[5] border-b border-stone-200 bg-[#f7f7f5]" style={{ width: matrixW }}>
         <canvas
           ref={headerRef}
           className="max-w-none"
@@ -243,11 +243,30 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
       <div ref={wrapRef} className="relative" style={{ height: bodyH }}>
         <canvas
           ref={bodyRef}
+          role="img"
+          aria-label={`Heatmap: ${order.length} drugs by ${nP} pathways, coloured by ${
+            mode === 'dir' ? 'dominant direction and activity' : 'significant fraction'
+          }, at q < 0.05. The drug list below carries the same rows as links.`}
           className="absolute left-0 top-0 cursor-pointer"
           onMouseMove={onMove}
           onMouseLeave={onLeave}
           onClick={onClick}
         />
+        {/* The canvas cannot be focused or read. This mirrors its row order as
+            real links so keyboard and screen-reader users can still identify
+            and open every drug in the current ordering. */}
+        <ul className="sr-only">
+          {order.map((oi, r) => {
+            const d = summary.drugs[oi];
+            return (
+              <li key={d.slug}>
+                <a href={`#/drug/${encodeURIComponent(d.slug)}`}>
+                  {r + 1}. {nameBySlug.get(d.slug) ?? d.slug}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );
