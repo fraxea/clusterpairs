@@ -188,10 +188,11 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
   }, []);
 
   return (
-    // min-w-fit only where content is legitimately wider than the viewport
-    // (the Landscape matrix), so the header and background span it there while
-    // every other route stays free of page-level horizontal scroll.
-    <div className={`min-h-screen bg-[#f7f7f5] text-stone-900 ${route.type === 'atlas' ? 'min-w-fit' : ''}`}>
+    // No min-w-fit anywhere: every view now sizes itself to the container (the
+    // Landscape matrix picks a cell width that fits), so nothing forces
+    // page-level horizontal scroll. min-w-fit here would also feed back into
+    // the Landscape's own container measurement and inflate it.
+    <div className="min-h-screen bg-[#f7f7f5] text-stone-900">
       {/* signature hairline: the four data colors */}
       <div className="h-[3px] w-full" style={{
         background: 'linear-gradient(to right, #bc3a30 0 25%, #2a78d6 25% 50%, #6c55bd 50% 75%, #7b786f 75% 100%)',

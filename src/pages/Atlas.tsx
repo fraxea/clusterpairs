@@ -1,7 +1,7 @@
 // Atlas.tsx — the whole-screen landscape: every drug x every pathway at the
 // reference cutoff, with direction or activity encoding, sortable rows, and
 // clustered (seriated) orderings that surface the block/community structure.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, Summary } from '../types';
 import { drugActivity, pathwayActivity } from '../significance';
 import {
@@ -13,19 +13,41 @@ import { GUTTER, OVERHANG, OverviewMatrix, type AtlasMode } from '../viz/Overvie
 
 type SortKind = { kind: 'activity' } | { kind: 'name' } | { kind: 'cluster' } | { kind: 'pathway'; p: number };
 
-function useCellW(nP: number): number {
-  const compute = () => {
-    const avail = Math.min(window.innerWidth, 1700) - 40 /* main padding */ - GUTTER - OVERHANG;
-    return Math.max(12, Math.min(22, Math.floor(avail / nP)));
-  };
-  const [w, setW] = useState(compute);
+/**
+ * Size the cells so the whole matrix FITS its container — 50 columns is little
+ * enough that horizontal scrolling is never necessary. Measures the real
+ * container (previously it guessed from window.innerWidth, which ignores the
+ * page's max-width and overshot by ~60px, forcing a scrollbar). The measured
+ * element is w-full so its width never depends on the matrix — no feedback loop.
+ */
+function useFitCellW(nP: number): [React.RefObject<HTMLDivElement | null>, number] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(18);
   useEffect(() => {
-    const onResize = () => setW(compute());
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const avail = el.clientWidth - GUTTER - OVERHANG;
+      setW(Math.max(9, Math.min(24, Math.floor(avail / nP))));
+    };
+    // Re-measure after layout settles: a resize fires repeatedly while the nav
+    // re-wraps, and reading mid-sequence latches a stale container width.
+    let raf = 0; let timer = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf); window.clearTimeout(timer);
+      raf = requestAnimationFrame(measure);
+      timer = window.setTimeout(measure, 200);
+    };
+    measure();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(el);
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(raf); window.clearTimeout(timer);
+      ro.disconnect(); window.removeEventListener('resize', schedule);
+    };
   }, [nP]);
-  return w;
+  return [ref, w];
 }
 
 export function Atlas({ manifest, summary, params }: {
@@ -55,7 +77,7 @@ export function Atlas({ manifest, summary, params }: {
     });
   };
 
-  const cellW = useCellW(nP);
+  const [fitRef, cellW] = useFitCellW(nP);
 
   const nameBySlug = useMemo(
     () => new Map(manifest.drugs.map((d) => [d.slug, d.name])),
@@ -165,11 +187,11 @@ export function Atlas({ manifest, summary, params }: {
         )}
       </div>
 
-      {/* w-fit, NOT overflow-x-auto: a scroll container would become the
-          sticky band's scrollport (overflow-x:auto coerces overflow-y to auto)
-          and the pathway labels would stop sticking. The matrix sizes itself to
-          the viewport; only very narrow windows scroll the page. */}
-      <div className="mt-4 w-fit">
+      {/* The outer div is the measuring reference (w-full, so its width never
+          depends on the matrix). The inner is w-fit — NOT a scroll container,
+          which would become the sticky band's scrollport and stop the pathway
+          labels sticking (overflow-x:auto coerces overflow-y to auto). */}
+      <div ref={fitRef} className="mt-4 w-full">
         <OverviewMatrix
           manifest={manifest} summary={summary} mode={mode} order={order}
           colOrder={colOrder} cellW={cellW}
