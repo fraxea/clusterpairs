@@ -14,9 +14,10 @@ import { ramp } from '../colors';
 import { Segmented, Spinner, StatTile } from '../ui';
 import { downloadSvg } from '../export';
 import { tipBind, useTip } from '../tooltip';
+import { ClusterCoupling } from './ClusterCoupling';
 
 type Metric = 'net' | 'up' | 'down' | 'act';
-type View = 'pair' | 'lasso';
+type View = 'pair' | 'lasso' | 'cluster';
 
 const metricValue = (metric: Metric) => (d: SummaryDrug, p: number): number => {
   if (d.tested[p] <= 0) return NaN;
@@ -82,6 +83,14 @@ function ModeSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
           <circle cx="13" cy="9" r="1.9" fill={ink(view === 'pair')} />
           <circle cx="17" cy="10" r="1.9" fill={ink(view === 'pair')} />
         </svg>)}
+      {card('cluster', 'Per-cluster coupling',
+        'One drug, cluster by cluster — are the two pathways coupled in every subpopulation, or only some?',
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <polyline points="3,17 8,9 13,13 18,5 21,8" stroke={ink(view === 'cluster')} strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx="8" cy="9" r="1.8" fill={ink(view === 'cluster')} />
+          <circle cx="13" cy="13" r="1.8" fill={ink(view === 'cluster')} />
+          <circle cx="18" cy="5" r="1.8" fill={ink(view === 'cluster')} />
+        </svg>)}
       {card('lasso', 'Lasso selection',
         'One response vs the other 49 — sparse regression keeps only the pathways with independent signal.',
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -139,7 +148,12 @@ export function Correlate({ manifest, summary, params }: {
 }) {
   const tip = useTip();
   const scatterRef = useRef<SVGSVGElement>(null);
-  const [view, setViewRaw] = useState<View>(params.get('v') === 'lasso' ? 'lasso' : 'pair');
+  const [view, setViewRaw] = useState<View>(() => {
+    const v = params.get('v');
+    return v === 'lasso' || v === 'cluster' ? v : 'pair';
+  });
+  const [couplingDrug, setCouplingDrug] = useState<string | null>(() => params.get('d'));
+  const pickDrug = (sl: string) => { setCouplingDrug(sl); setHashParams({ d: sl }); };
   const [xIdx, setXIdx] = useState(() => findPathway(manifest, params.get('x'), 'Hypoxia'));
   const [yIdx, setYIdx] = useState(() => findPathway(manifest, params.get('y'), 'Epithelial Mesenchymal Transition'));
   const [metric, setMetric] = useState<Metric>(() => {
@@ -269,13 +283,19 @@ export function Correlate({ manifest, summary, params }: {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Pathway correlation</h1>
           <p className="mt-1 max-w-3xl text-sm text-stone-500">
-            {view === 'pair'
-              ? <>Each point is one drug ({points.length} of {summary.drugs.length}); axes are how that drug regulates the
+            {view === 'pair' ? (
+              <>Each point is one drug ({points.length} of {summary.drugs.length}); axes are how that drug regulates the
                 two chosen pathways across all its (stream × cluster-pair) tests at q &lt; 0.05.
                 Line = least-squares fit with 95% confidence band.</>
-              : <>Which pathways jointly predict the response pathway across the {summary.drugs.length} drugs?
+            ) : view === 'cluster' ? (
+              <>Inside a single drug, are the two pathways coupled in every cell subpopulation, or only in some?
+                For each drug cluster the correlation is computed across that drug&rsquo;s DMSO reference
+                clusters, separately for up-regulation, down-regulation and the direction-less methods.</>
+            ) : (
+              <>Which pathways jointly predict the response pathway across the {summary.drugs.length} drugs?
                 Lasso (L1) regression shrinks redundant predictors to exactly zero — only the pathways that
-                carry independent signal keep a coefficient. λ chosen by 5-fold cross-validation.</>}
+                carry independent signal keep a coefficient. λ chosen by 5-fold cross-validation.</>
+            )}
           </p>
         </div>
       </div>
@@ -284,7 +304,7 @@ export function Correlate({ manifest, summary, params }: {
 
       {/* form row */}
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-white p-3">
-        {view === 'pair' && (
+        {view !== 'lasso' && (
           <>
             <label className="flex items-center gap-2 text-sm text-stone-600">
               <span className="font-medium">x</span>
@@ -303,16 +323,25 @@ export function Correlate({ manifest, summary, params }: {
           </>
         )}
         <label className="flex items-center gap-2 text-sm text-stone-600">
-          <span className="font-medium">{view === 'pair' ? 'y' : 'response y'}</span>
+          <span className="font-medium">{view === 'lasso' ? 'response y' : 'y'}</span>
           <select value={yIdx} onChange={(e) => setY(Number(e.target.value))}
             className="max-w-72 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm">
             {manifest.pathways.map((n, i) => <option key={i} value={i}>{n}</option>)}
           </select>
         </label>
-        <div className="ml-auto flex items-center gap-2">
-          <MetricControl metric={metric} onChange={setM} />
-        </div>
+        {view !== 'cluster' && (
+          <div className="ml-auto flex items-center gap-2">
+            <MetricControl metric={metric} onChange={setM} />
+          </div>
+        )}
       </div>
+
+      {view === 'cluster' && (
+        <ClusterCoupling
+          key={couplingDrug ?? 'none'}
+          manifest={manifest} slug={couplingDrug} aIdx={xIdx} bIdx={yIdx} onPickDrug={pickDrug}
+        />
+      )}
 
       {view === 'lasso' && (
         <LassoView

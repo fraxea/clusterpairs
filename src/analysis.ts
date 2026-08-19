@@ -4,7 +4,7 @@
 // inference (incomplete beta → t / sign tests), OLS, and the lasso path.
 // Everything is seeded/deterministic so results are reproducible.
 
-import type { SummaryDrug } from './types';
+import type { PairwiseCells, SummaryDrug } from './types';
 
 // ------------------------------------------------------------ seeded rng ----
 export function rng(seed: number): () => number {
@@ -736,4 +736,158 @@ export function consensusRows(nets: Float64Array[], nP: number): ConsensusRow[] 
     byP[i].q = prev;
   }
   return rows;
+}
+
+// ==================== per-cluster pathway coupling ==========================
+// The library-wide correlation (one point per drug) averages away all cluster
+// structure. This asks a narrower question: inside ONE drug, do two pathways
+// move together within each drug cluster separately?
+//
+// For a fixed drug cluster q, the observations are that drug's DMSO reference
+// clusters r = 1..n_ref. Each (r, q) cell gives pathway A and pathway B a value
+// in three channels — up, down, and unsigned — and we correlate A against B
+// across r, per channel.
+//
+// n = n_ref is only 9-12, so: Spearman (robust to the nlp clipping at 300 and
+// to heavy tails) with an exact-style permutation p, and BH across the
+// cluster x channel grid. Rho estimates at this n are noisy by construction —
+// the UI must say so.
+
+export type Channel = 'up' | 'down' | 'uns';
+export const CHANNELS: Channel[] = ['up', 'down', 'uns'];
+
+/**
+ * Per (drug cluster, DMSO cluster, pathway) channel values for one drug.
+ * up/down come from the directional streams only (a stream that called the
+ * cell "down" contributes 0 to the up channel, so the mean is over all
+ * directional records, not just the concordant ones). uns is the mean over the
+ * direction-less streams (ORA, CellSpectra).
+ */
+export interface ChannelCube {
+  nRef: number; nQuery: number; nP: number;
+  up: Float64Array; down: Float64Array; uns: Float64Array;
+}
+
+const cubeIdx = (q: number, r: number, p: number, nRef: number, nP: number): number =>
+  (q * nRef + r) * nP + p;
+
+export function channelCube(
+  pairwise: PairwiseCells, nRef: number, nQuery: number, nP: number, signedStreams: Set<number>,
+): ChannelCube {
+  const size = nQuery * nRef * nP;
+  const up = new Float64Array(size);
+  const down = new Float64Array(size);
+  const uns = new Float64Array(size);
+  const nSigned = new Float64Array(size);
+  const nUns = new Float64Array(size);
+  const c = pairwise;
+  for (let k = 0; k < c.stream.length; k += 1) {
+    const q = c.query[k]; const r = c.ref[k]; const p = c.pathway[k];
+    if (q >= nQuery || r >= nRef || p >= nP) continue;
+    const i = cubeIdx(q, r, p, nRef, nP);
+    if (signedStreams.has(c.stream[k])) {
+      nSigned[i] += 1;
+      if (c.sign[k] > 0) up[i] += c.nlp[k];
+      else if (c.sign[k] < 0) down[i] += c.nlp[k];
+    } else {
+      nUns[i] += 1;
+      uns[i] += c.nlp[k];
+    }
+  }
+  for (let i = 0; i < size; i += 1) {
+    if (nSigned[i] > 0) { up[i] /= nSigned[i]; down[i] /= nSigned[i]; }
+    if (nUns[i] > 0) uns[i] /= nUns[i];
+  }
+  return { nRef, nQuery, nP, up, down, uns };
+}
+
+/** Pearson on two rank vectors — the inner loop of the permutation test. */
+function rhoOfRanks(rx: number[], ry: number[]): number {
+  return pearson(rx, ry);
+}
+
+export interface CouplingPoint {
+  cluster: number;
+  channel: Channel;
+  rho: number;      // NaN when a channel is constant (e.g. never down)
+  p: number;        // two-sided permutation p
+  q: number;        // BH across the cluster x channel grid of one pathway pair
+  n: number;        // = n_ref
+  degenerate: boolean; // no variance in at least one series
+}
+
+/**
+ * Spearman rho + permutation p for pathways A vs B, per drug cluster and
+ * channel. `perms` shuffles the rank vector; 2000 gives a p-floor of 1/2001.
+ */
+export function pairCoupling(
+  cube: ChannelCube, a: number, b: number, perms = 2000, seed = 20260812,
+): CouplingPoint[] {
+  const { nRef, nQuery, nP } = cube;
+  const series = (ch: Channel, q: number, p: number): number[] => {
+    const src = ch === 'up' ? cube.up : ch === 'down' ? cube.down : cube.uns;
+    const out = new Array<number>(nRef);
+    for (let r = 0; r < nRef; r += 1) out[r] = src[cubeIdx(q, r, p, nRef, nP)];
+    return out;
+  };
+  const rand = rng(seed);
+  const pts: CouplingPoint[] = [];
+  for (let q = 0; q < nQuery; q += 1) {
+    for (const ch of CHANNELS) {
+      const xs = series(ch, q, a); const ys = series(ch, q, b);
+      const flat = (v: number[]) => v.every((x) => x === v[0]);
+      if (nRef < 4 || flat(xs) || flat(ys)) {
+        pts.push({ cluster: q, channel: ch, rho: NaN, p: NaN, q: NaN, n: nRef, degenerate: true });
+        continue;
+      }
+      const rx = ranks(xs); const ry = ranks(ys);
+      const rho = rhoOfRanks(rx, ry);
+      // permutation null: shuffle one rank vector
+      const shuf = [...ry];
+      let exceed = 0;
+      for (let t = 0; t < perms; t += 1) {
+        for (let i = shuf.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(rand() * (i + 1));
+          [shuf[i], shuf[j]] = [shuf[j], shuf[i]];
+        }
+        if (Math.abs(rhoOfRanks(rx, shuf)) >= Math.abs(rho) - 1e-12) exceed += 1;
+      }
+      pts.push({
+        cluster: q, channel: ch, rho, n: nRef, degenerate: false,
+        p: (exceed + 1) / (perms + 1), q: 1,
+      });
+    }
+  }
+  // BH over the tests that actually ran
+  const live = pts.filter((x) => !x.degenerate).sort((x, y) => x.p - y.p);
+  let prev = 1;
+  for (let i = live.length - 1; i >= 0; i -= 1) {
+    prev = Math.min(prev, (live[i].p * live.length) / (i + 1));
+    live[i].q = prev;
+  }
+  return pts;
+}
+
+/**
+ * Which pathways are most active in each drug cluster (all streams, all DMSO
+ * refs, at the fixed reference cutoff) — the "what else is going on here"
+ * companion to the coupling lines.
+ */
+export function clusterEnrichment(
+  pairwise: PairwiseCells, nRef: number, nQuery: number, nP: number, thr: number,
+): { frac: number[][]; tested: number[][] } {
+  const frac = Array.from({ length: nQuery }, () => new Array<number>(nP).fill(0));
+  const tested = Array.from({ length: nQuery }, () => new Array<number>(nP).fill(0));
+  const c = pairwise;
+  for (let k = 0; k < c.stream.length; k += 1) {
+    const q = c.query[k]; const p = c.pathway[k];
+    if (q >= nQuery || p >= nP) continue;
+    tested[q][p] += 1;
+    if (c.nlp[k] >= thr) frac[q][p] += 1;
+  }
+  for (let q = 0; q < nQuery; q += 1) {
+    for (let p = 0; p < nP; p += 1) if (tested[q][p] > 0) frac[q][p] /= tested[q][p];
+  }
+  void nRef;
+  return { frac, tested };
 }
