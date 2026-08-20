@@ -16,6 +16,7 @@ import { Rank } from './pages/Rank';
 import { Correlate } from './pages/Correlate';
 import { Connect } from './pages/Connect';
 import { Consensus } from './pages/Consensus';
+import { Mechanism } from './pages/Mechanism';
 import { Guide } from './pages/Guide';
 import { Heterogeneity } from './pages/Heterogeneity';
 import { Figures } from './pages/Figures';
@@ -29,6 +30,7 @@ type Route =
   | { type: 'correlate' }
   | { type: 'connect' }
   | { type: 'consensus' }
+  | { type: 'mechanism' }
   | { type: 'hetero' }
   | { type: 'figures' }
   | { type: 'guide' }
@@ -45,6 +47,7 @@ function parseRoute(hash: string): { route: Route; params: URLSearchParams } {
     if (path === 'correlate' || path === 'correlation') return { type: 'correlate' } as const;
     if (path === 'connect' || path === 'connectivity') return { type: 'connect' } as const;
     if (path === 'consensus') return { type: 'consensus' } as const;
+    if (path === 'mechanism' || path === 'moa') return { type: 'mechanism' } as const;
     if (path === 'hetero' || path === 'heterogeneity') return { type: 'hetero' } as const;
     if (path === 'figures') return { type: 'figures' } as const;
     if (path === 'guide' || path === 'docs' || path === 'help') return { type: 'guide' } as const;
@@ -113,6 +116,12 @@ function NavIcon({ kind }: { kind: string }) {
         {[[11.5, 10], [13.8, 11.5]].map(([x, y]) => (
           <line key={x} x1={x} y1={8} x2={x} y2={y} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity={0.6} />
         ))}
+      </svg>);
+    case 'mechanism': return (
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+        <circle cx="8" cy="8" r="6.2" {...s} />
+        <circle cx="8" cy="8" r="2.6" {...s} opacity={0.55} />
+        <circle cx="8" cy="8" r="1" fill="currentColor" />
       </svg>);
     case 'consensus': return (
       <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
@@ -214,6 +223,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
             <NavItem href="#/correlate" icon="correlate" active={route.type === 'correlate'}>Correlate</NavItem>
             <NavItem href="#/connect" icon="connect" active={route.type === 'connect'}>Connect</NavItem>
             <NavItem href="#/consensus" icon="consensus" active={route.type === 'consensus'}>Consensus</NavItem>
+            <NavItem href="#/mechanism" icon="mechanism" active={route.type === 'mechanism'}>Mechanism</NavItem>
             <NavItem href="#/hetero" icon="hetero" active={route.type === 'hetero'}>Heterogeneity</NavItem>
             <NavItem href="#/rank" icon="rank" active={route.type === 'rank'}>Rank</NavItem>
             <span className="mx-1.5 h-5 w-px bg-stone-300/80" aria-hidden />
@@ -291,6 +301,7 @@ export default function App() {
             : route.type === 'correlate' ? 'correlation'
             : route.type === 'connect' ? 'connectivity'
             : route.type === 'consensus' ? 'consensus'
+            : route.type === 'mechanism' ? 'mechanism'
             : route.type === 'hetero' ? 'heterogeneity'
             : route.type === 'figures' ? 'figures'
             : route.type === 'guide' ? 'guide'
@@ -338,6 +349,7 @@ export default function App() {
               : route.type === 'correlate' ? needsSummary(summary && <Correlate key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'connect' ? needsSummary(summary && <Connect key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'consensus' ? needsSummary(summary && <Consensus manifest={manifest} summary={summary} />)
+              : route.type === 'mechanism' ? needsSummary(summary && <Mechanism key={params.toString()} manifest={manifest} summary={summary} params={params} />)
               : route.type === 'hetero' ? <Heterogeneity key={params.toString()} manifest={manifest} params={params} />
               : route.type === 'figures' ? needsSummary(summary && <Figures manifest={manifest} summary={summary} />)
               : route.type === 'guide' ? <Guide manifest={manifest} summary={summary} />

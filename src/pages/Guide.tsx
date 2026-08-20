@@ -58,7 +58,7 @@ export function Guide({ manifest, summary }: { manifest: Manifest; summary: Summ
           ['dataset', 'The dataset'], ['numbers', 'How a number is built'], ['colour', 'Colour language'],
           ['drugs', 'Drugs'], ['landscape', 'Landscape'], ['pathways', 'Pathways'], ['drugpage', 'Drug pages'],
           ['correlation', 'Correlation'], ['connectivity', 'Connectivity'], ['consensus', 'Consensus'],
-          ['hetero', 'Heterogeneity'], ['rank', 'Rank'], ['figures', 'Figures'],
+          ['mechanism', 'Mechanism'], ['hetero', 'Heterogeneity'], ['rank', 'Rank'], ['figures', 'Figures'],
           ['stats', 'Statistics reference'], ['exports', 'Exports'], ['caveats', 'Caveats'],
         ].map(([id, label]) => (
           <button
@@ -364,6 +364,56 @@ export function Guide({ manifest, summary }: { manifest: Manifest; summary: Summ
           </p>
         </Section>
 
+        <Section id="mechanism" title="Mechanism — does pathway space encode what a drug does?" href="#/mechanism">
+          <p>
+            The only view that brings <em>external</em> knowledge to bear. Every drug is matched to ChEMBL by
+            name and its curated <B>primary mechanism of action</B> is used as a ground-truth label;
+            {' '}{manifest.drugs.length > 0 && '211'} of the {manifest.drugs.length} drugs carry at least one mechanism, and restricting to
+            mechanisms with <N>≥ 3</N> members leaves a benchmark set of <N>80</N> drugs across <N>21</N> classes.
+          </p>
+          <p>
+            <B>The benchmark.</B> Following the standard used in the MoA-prediction literature, every pair of
+            labelled drugs is scored by cosine similarity of their net-direction signatures and the pairs are
+            ranked; <B>AUROC</B> is the probability that a randomly chosen same-mechanism pair outranks a
+            randomly chosen different-mechanism pair. The null comes from shuffling which drug carries which
+            mechanism label (200 permutations), so it accounts for class sizes and the similarity distribution.
+          </p>
+          <p>
+            <B>The result is a negative, and it is stated as one.</B> Over <N>142</N> same-mechanism and
+            {' '}<N>3,018</N> different-mechanism pairs the AUROC is <N>0.51</N> against a permutation null of
+            {' '}<N>0.50</N> (p ≈ 0.3). At Hallmark-pathway resolution, two drugs sharing a target are on
+            average no more alike than two drugs picked at random. That is consistent with the published
+            difficulty of matching weak-response compounds, and is compounded here by resolution:
+            {' '}{manifest.pathways.length} broad programmes cannot separate mechanisms that funnel into the same
+            proliferation and stress responses.
+          </p>
+          <p>
+            <B>Where the signal actually is.</B> The per-class panel ranks each mechanism by its
+            {' '}<B>coherence gap</B> — median cosine <em>within</em> the class minus median cosine from its
+            members to every drug outside it. This varies enormously: cyclooxygenase-2 inhibitors are tightly
+            convergent (gap <N>+0.57</N>; Meloxicam, Valdecoxib and Celecoxib all sit at <N>+0.5</N> to
+            {' '}<N>+0.8</N> to their class centroid), while several classes are <em>anti</em>-coherent — their
+            members less alike than random pairs. Bars are emerald for convergent and amber for anti-coherent,
+            deliberately <em>not</em> the red/blue that encode up/down elsewhere.
+          </p>
+          <p>
+            <B>Class outliers.</B> Selecting a class scores each member against the centroid of the
+            {' '}<em>other</em> members — leave-one-out, so a single outlier cannot drag the centroid onto
+            itself and hide. Two different situations are separated by the <N>‖net‖</N> column (the length of
+            the drug&rsquo;s net-direction vector, i.e. how much measurable response it produced at all): a low
+            score on a <B>strong</B> signature is the interesting case — the drug responded loudly but unlike
+            its class, a candidate off-target or polypharmacology effect — while a low score on a <B>weak</B>
+            signature more likely means the response was too small to measure. Both are tagged in the list.
+          </p>
+          <p>
+            <B>Read it with the stated limits.</B> Classes hold 3–10 members, so gaps are estimates from few
+            pairs and no per-class p-value is claimed — the ranking is descriptive. ChEMBL&rsquo;s primary
+            mechanism is a single label for a drug that may hit many targets, so an incoherent class may simply
+            be heterogeneous in reality. And a negative result here is a statement about <em>this
+            representation</em>, not about the drugs.
+          </p>
+        </Section>
+
         <Section id="hetero" title="Heterogeneity" href="#/hetero">
           <p>
             Do all of a drug&rsquo;s clusters respond the same way? <B>Dispersion</B> is the mean RMS distance
@@ -427,6 +477,7 @@ export function Guide({ manifest, summary }: { manifest: Manifest; summary: Summ
                 ['Consensus · panel A', 'Exact binomial vs 50:50 sign split', `responders with |net| > ${RESPONDER_MIN}`, `BH across ${manifest.pathways.length} pathways`],
                 ['Consensus · panel B', 'Leave-one-out correlation to the consensus', `${manifest.drugs.length} drugs`, 'n/a — descriptive'],
                 ['Consensus · panel C', 'Standardised departure z from the consensus', `${manifest.drugs.length} drugs`, 'ranked, capped at 3 per drug'],
+                ['Mechanism', 'AUROC of same-MoA vs different-MoA pairs by cosine; label-permutation null (200)', '80 drugs / 21 classes', 'permutation p; per-class gaps descriptive'],
                 ['Heterogeneity', 'RMS distance between cluster profiles', `${rng(nQs)} clusters`, 'n/a — descriptive'],
                 ['Drug pages', 'BH q-values from the upstream pipeline', 'per stream', 'BH within stream'],
               ].map(([a, b, c, d]) => (
@@ -484,6 +535,11 @@ export function Guide({ manifest, summary }: { manifest: Manifest; summary: Summ
           <li>
             <B>Cluster-coupling ρ is estimated from {rng(nRefs)} points.</B> Individual significant points are
             weak evidence; consistency across clusters is what to trust.
+          </li>
+          <li>
+            <B>Mechanism labels are single primary annotations.</B> ChEMBL records one main mechanism per
+            drug; real compounds are frequently polypharmacological, so a drug sitting apart from its class is
+            a hypothesis to follow up, not a proven off-target effect.
           </li>
           <li>
             <B>DMSO clusters are different cell contexts, not replicates.</B> Treating them as observations

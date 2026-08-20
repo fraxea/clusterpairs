@@ -891,3 +891,180 @@ export function clusterEnrichment(
   void nRef;
   return { frac, tested };
 }
+
+// ======================= mechanism-of-action coherence ======================
+// Does a Hallmark-pathway signature encode a drug's mechanism? The standard
+// benchmark (MOASL, Jiang 2023; GPAR, Gao 2022) ranks same-mechanism drug pairs
+// against different-mechanism pairs by signature similarity and reports AUROC.
+// Sirci (2017) showed the complementary failure modes: structurally similar
+// same-MoA drugs whose transcriptional response is too weak to match, and
+// unrelated drugs pulled together by a shared toxicity programme.
+//
+// Everything here uses the ChEMBL primary mechanism as the label and cosine on
+// the net-direction vector as the similarity, so the answer is directly
+// comparable to those papers.
+
+export interface MoaClass {
+  mechanism: string;
+  members: number[];      // indices into the drug/vector arrays
+  withinMed: number;      // median pairwise cosine inside the class
+  betweenMed: number;     // median cosine from members to every non-member
+  gap: number;            // withinMed - betweenMed; the coherence score
+  strengthMed: number;    // median ||net|| of members — weak classes are noise
+}
+
+const median = (xs: number[]): number => {
+  if (xs.length === 0) return NaN;
+  const s = [...xs].sort((a, b) => a - b);
+  const h = Math.floor(s.length / 2);
+  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+};
+
+/** Rank-based AUROC with average ranks for ties. labels: 1 = positive. */
+export function auroc(scores: number[], labels: number[]): number {
+  const idx = scores.map((s, i) => [s, labels[i]] as const).sort((a, b) => a[0] - b[0]);
+  const r = new Array<number>(idx.length);
+  let i = 0;
+  while (i < idx.length) {
+    let j = i;
+    while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j += 1;
+    const avg = (i + j) / 2 + 1;
+    for (let k = i; k <= j; k += 1) r[k] = avg;
+    i = j + 1;
+  }
+  let n1 = 0; let R1 = 0;
+  for (let k = 0; k < idx.length; k += 1) if (idx[k][1] === 1) { n1 += 1; R1 += r[k]; }
+  const n0 = idx.length - n1;
+  if (n1 === 0 || n0 === 0) return NaN;
+  return (R1 - (n1 * (n1 + 1)) / 2) / (n1 * n0);
+}
+
+export interface MoaBenchmark {
+  classes: MoaClass[];
+  nDrugs: number;         // drugs carrying a usable label
+  nClasses: number;
+  auroc: number;          // same-MoA pairs ranked above different-MoA pairs
+  nullMed: number;        // median AUROC under label permutation
+  p: number;              // permutation p for the observed AUROC
+  samePairs: number;
+  diffPairs: number;
+}
+
+/**
+ * Build the labelled benchmark set and score it. `label[i]` is the primary
+ * mechanism for drug i, or null. Classes below `minSize` are dropped (a class
+ * of two contributes a single pair and cannot be assessed).
+ */
+export function moaBenchmark(
+  vecs: Float64Array[], label: Array<string | null>, minSize = 3, perms = 200, seed = 7,
+): MoaBenchmark {
+  const byMech = new Map<string, number[]>();
+  label.forEach((m, i) => {
+    if (!m || m === 'Unknown') return;
+    const cur = byMech.get(m);
+    if (cur) cur.push(i); else byMech.set(m, [i]);
+  });
+  const kept = [...byMech.entries()].filter(([, v]) => v.length >= minSize);
+  const labelled = kept.flatMap(([, v]) => v);
+  const mechOf = new Map<number, string>();
+  for (const [k, v] of kept) for (const i of v) mechOf.set(i, k);
+
+  const norm = vecs.map((v) => Math.sqrt(v.reduce((s, x) => s + x * x, 0)));
+  const cos = (i: number, j: number): number => {
+    const d = norm[i] * norm[j];
+    return d === 0 ? 0 : cosine(vecs[i], vecs[j]) ;
+  };
+
+  // global AUROC over every labelled pair
+  const scores: number[] = []; const labs: number[] = [];
+  for (let a = 0; a < labelled.length; a += 1) {
+    for (let b = a + 1; b < labelled.length; b += 1) {
+      const i = labelled[a]; const j = labelled[b];
+      scores.push(cos(i, j));
+      labs.push(mechOf.get(i) === mechOf.get(j) ? 1 : 0);
+    }
+  }
+  const obs = auroc(scores, labs);
+
+  // label-permutation null: reshuffle which drug carries which mechanism
+  const rand = rng(seed);
+  const nulls: number[] = [];
+  for (let t = 0; t < perms; t += 1) {
+    const shuffled = [...labelled];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const permMech = new Map<number, string>();
+    labelled.forEach((d, k) => permMech.set(d, mechOf.get(shuffled[k]) as string));
+    const l2: number[] = [];
+    for (let a = 0; a < labelled.length; a += 1) {
+      for (let b = a + 1; b < labelled.length; b += 1) {
+        l2.push(permMech.get(labelled[a]) === permMech.get(labelled[b]) ? 1 : 0);
+      }
+    }
+    nulls.push(auroc(scores, l2));
+  }
+  nulls.sort((a, b) => a - b);
+  const exceed = nulls.filter((x) => x >= obs).length;
+
+  // per-class coherence
+  const memberSet = new Set(labelled);
+  const classes: MoaClass[] = kept.map(([mech, members]) => {
+    const within: number[] = [];
+    for (let a = 0; a < members.length; a += 1) {
+      for (let b = a + 1; b < members.length; b += 1) within.push(cos(members[a], members[b]));
+    }
+    const between: number[] = [];
+    const own = new Set(members);
+    for (const i of members) {
+      for (let j = 0; j < vecs.length; j += 1) if (!own.has(j)) between.push(cos(i, j));
+    }
+    const w = median(within); const bt = median(between);
+    return {
+      mechanism: mech, members,
+      withinMed: w, betweenMed: bt, gap: w - bt,
+      strengthMed: median(members.map((i) => norm[i])),
+    };
+  }).sort((a, b) => b.gap - a.gap);
+  void memberSet;
+
+  return {
+    classes, nDrugs: labelled.length, nClasses: kept.length,
+    auroc: obs, nullMed: median(nulls), p: (exceed + 1) / (perms + 1),
+    samePairs: labs.filter((x) => x === 1).length,
+    diffPairs: labs.filter((x) => x === 0).length,
+  };
+}
+
+export interface ClassMember {
+  drug: number;
+  toCentroid: number;   // cosine to the class centroid, computed leave-one-out
+  strength: number;     // ||net||
+}
+
+/**
+ * Members of one class ranked by how well each matches the rest of its class.
+ * The centroid excludes the drug being scored, so a single outlier cannot drag
+ * the centroid toward itself and hide. A low score on a strong signature is the
+ * polypharmacology / off-target candidate; a low score on a weak signature is
+ * more likely just an unmeasurable response.
+ */
+export function classMembers(vecs: Float64Array[], members: number[]): ClassMember[] {
+  const nP = vecs[0]?.length ?? 0;
+  return members.map((i) => {
+    const c = new Float64Array(nP);
+    let n = 0;
+    for (const j of members) {
+      if (j === i) continue;
+      for (let p = 0; p < nP; p += 1) c[p] += vecs[j][p];
+      n += 1;
+    }
+    if (n > 0) for (let p = 0; p < nP; p += 1) c[p] /= n;
+    return {
+      drug: i,
+      toCentroid: n > 0 ? cosine(vecs[i], c) : NaN,
+      strength: Math.sqrt(vecs[i].reduce((s, x) => s + x * x, 0)),
+    };
+  }).sort((a, b) => b.toCentroid - a.toCentroid);
+}
