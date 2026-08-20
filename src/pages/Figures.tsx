@@ -5,7 +5,7 @@ import { useMemo, useRef } from 'react';
 import type { Manifest, Summary } from '../types';
 import {
   connectivity, connectivityBackground, consensusRows, netVectors,
-  olsBandAt, olsFit, pc1Axis, pearsonTest,
+  olsBandAt, olsFit, pc1Axis, pearsonTest, RESPONDER_MIN,
 } from '../analysis';
 import { fmtCompact, pathwaySlug, streamLabel } from '../format';
 import { ramp } from '../colors';
@@ -52,6 +52,8 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
   const nets = useMemo(() => netVectors(summary.drugs), [summary.drugs]);
   const nameBySlug = useMemo(() => new Map(manifest.drugs.map((d) => [d.slug, d.name])), [manifest.drugs]);
   const slugs = useMemo(() => summary.drugs.map((d) => d.slug), [summary.drugs]);
+  // directional streams (GSEA/fgsea) — the only ones that can carry a sign
+  const signedCount = manifest.streams.filter((s) => s[0] === 'gsea' || s[0] === 'fgsea').length;
 
   // ---------------- Fig 1: consensus forest (all 50 pathways) ----------------
   const f1Ref = useRef<SVGSVGElement>(null);
@@ -249,16 +251,23 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Figures</h1>
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
         Manuscript-ready figures regenerated live from the current data — download any panel as vector SVG
-        plus its underlying numbers as CSV. All panels use the fixed reference cutoff q &lt; 0.05.
+        plus its underlying numbers as CSV. Every panel uses the fixed reference cutoff q &lt; 0.05, aggregates
+        over all {manifest.streams.length} method streams unless a caption says otherwise, and states its own
+        test and multiple-testing correction. Because they are computed rather than pasted in, they cannot fall
+        out of sync with the dataset.
       </p>
 
       <div className="mt-6 grid gap-5">
         <FigureCard
           n={1} title="The consensus perturbation signature" svgRef={f1Ref}
-          caption={`Mean net direction per Hallmark pathway across all ${nets.length} drugs (dot), with 95% confidence
-            intervals (whiskers). Right column: sign consistency among responding drugs (|net| > 2%); ★ marks
-            departures from a 50:50 sign split at BH q < 0.05 (exact binomial, Benjamini–Hochberg across the 50 pathways). The screen shares a stereotyped
-            program — mitotic/proliferation and hypoxia programs up, estrogen-response programs down.`}
+          caption={`Mean net direction per Hallmark pathway across all ${nets.length} drugs (dot), with 95% t-based
+            confidence intervals (whiskers). Net direction for a drug × pathway is (up − down) / tests, where up and
+            down come only from the ${signedCount} directional streams (GSEA·py, GSEA·R, fgsea·R) — ORA and CellSpectra are
+            direction-less and excluded from the sign. Right column: sign consistency, the share of responding drugs
+            (|net| > ${Math.round(RESPONDER_MIN * 100)}%) that agree on the majority direction; ★ marks a departure from a 50:50 split at
+            BH q < 0.05 (exact binomial, Benjamini–Hochberg across all ${manifest.pathways.length} pathways). The screen shares a
+            stereotyped programme — mitotic/proliferation and hypoxia up, estrogen-response down. This consensus is a
+            property of this compendium, not a universal drug response.`}
           csv={() => downloadCsv(consensus.map((r) => ({
             pathway: manifest.pathways[r.p], mean_net: r.mean.toFixed(4), ci95: r.ci.toFixed(4),
             responders: r.resp, consistency: Number.isFinite(r.consist) ? (r.consist as number).toFixed(3) : '',
@@ -272,10 +281,13 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
 
         <FigureCard
           n={2} title="Hypoxia and EMT are co-regulated" svgRef={f2Ref}
-          caption={`Per-drug net direction of Hallmark Hypoxia vs Epithelial Mesenchymal Transition
-            (r = ${scatter.pe.r.toFixed(2)}, n = ${scatter.pe.n}, two-tailed t-test p ${scatter.pe.p < 1e-16 ? '< 1e-16' : `= ${scatter.pe.p.toExponential(1)}`}).
-            Line: ordinary least squares with 95% confidence band. Each point is one drug's aggregate over all
-            (stream × cluster-pair) tests.`}
+          caption={`Per-drug net direction of Hallmark Hypoxia vs Epithelial Mesenchymal Transition — one point per
+            drug (Pearson r = ${scatter.pe.r.toFixed(2)}, n = ${scatter.pe.n}, two-tailed t-test p ${scatter.pe.p < 1e-16 ? '< 1e-16' : `= ${scatter.pe.p.toExponential(1)}`}, df = ${scatter.pe.n - 2}).
+            Line: ordinary least squares with a 95% confidence band for the mean response. Each point aggregates that
+            drug's (${signedCount} directional streams × all DMSO × drug cluster pairs) tests into a single net direction per
+            pathway, so all cluster structure is averaged away — the Correlation view's cluster-coupling mode resolves
+            it. Note the shared-potency confound: drugs that perturb strongly move every pathway, which inflates this
+            correlation; the potency-adjusted partial correlation is reported in the Correlation view.`}
           csv={() => downloadCsv(scatter.pts.map((p) => ({
             drug: nameBySlug.get(p.slug) ?? p.slug, slug: p.slug,
             hypoxia_net: p.x.toFixed(4), emt_net: p.y.toFixed(4),
@@ -286,10 +298,16 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
 
         <FigureCard
           n={3} title="Connectivity recovers drug classes without metadata" svgRef={f3Ref}
-          caption={`Connectivity waterfall for the Digitoxin query: all other drugs ranked by cosine similarity of
-            50-dimensional net-direction signatures. The top mimicker is Ouabain — the other cardiac glycoside in the
-            library — recovered from pathway space alone; strong reversers appear at the far right. τ statistics,
-            permutation p-values and the generic-axis decomposition are available in the Connectivity view.`}
+          caption={`Connectivity waterfall for the Digitoxin query: every other drug in the library ranked by cosine
+            similarity between ${manifest.pathways.length}-dimensional net-direction signatures (positive = mimicker, left; negative =
+            reverser, right). The top mimicker is Ouabain, the other cardiac glycoside in the library — recovered from
+            pathway space alone, with no drug metadata, target or class information used in the scoring. The
+            accompanying CSV carries, for every target: cosine, τ (the |cosine| percentile against that target's own
+            background distribution of connectivities to the whole atlas — |τ| ≥ 95 is the recommended filter), a
+            two-sided p from 1,000 permutations of the query's coordinates, BH-FDR across all targets, and the split
+            of each cosine into its generic component (projection onto the atlas first principal component, the shared
+            proliferation-stress axis) versus the pathway-specific remainder. This is transcriptional-programme
+            matching, not mechanism-of-action identification.`}
           csv={() => digi && downloadCsv(digi.hits.map((h, i) => ({
             rank: i + 1, drug: nameBySlug.get(slugs[h.target]) ?? '', cosine: h.cos.toFixed(4),
             tau: h.tau.toFixed(1), perm_p: h.p.toExponential(2), fdr: h.fdr.toExponential(2),
@@ -301,10 +319,14 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
 
         <FigureCard
           n={4} title="Method streams call significance at very different rates" svgRef={f4Ref}
-          caption={`Fraction of all pathway tests called significant (q < 0.05) by each of the seven method streams,
-            over ${fmtCompact(summary.totals.records)} tests. Same data, same cutoff — the calling rate differs several-fold
-            between method families (violet = direction-less streams), while same-method py/R pairs behave nearly
-            identically. Method choice, not implementation language, is the dominant analytic variable.`}
+          caption={`Fraction of all pathway tests called significant at q < 0.05 by each of the ${manifest.streams.length} method streams,
+            over ${fmtCompact(summary.totals.records)} tests in total. Every stream sees identical input — the same cells, the same
+            ${manifest.pathways.length} gene sets, the same cluster pairs, the same BH correction and the same cutoff — so the only variable
+            is the enrichment method and its implementation. The calling rate differs several-fold between method
+            families (violet = the direction-less streams, ORA and CellSpectra), while the same method implemented in
+            Python and in R behaves almost identically. Method choice, not implementation language, is the dominant
+            analytic decision; the per-drug Method-agreement tab shows the same conclusion as Jaccard overlap of the
+            actual call sets rather than of the rates.`}
           csv={() => downloadCsv(streams.map((s) => ({
             stream: s.label, significant: s.sig, tested: s.tested, fraction: (s.sig / s.tested).toFixed(4),
           })), 'figure_4_stream_rates')}
