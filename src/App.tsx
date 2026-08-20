@@ -1,4 +1,4 @@
-// App.tsx — shell, hash routing, and boot loading (manifest + summary).
+// App.tsx: shell, hash routing, and boot loading (manifest + summary).
 // Data is precomputed by build_frontend_data.py (+ scripts/build_summary.py)
 // and served from public/data/.
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
@@ -78,7 +78,7 @@ function initialCutoff(params: URLSearchParams): number {
   return validCutoff(stored) ? stored : 0.05;
 }
 
-// 14px stroke icons for the nav — one small geometric mark per view.
+// 14px stroke icons for the nav: one small geometric mark per view.
 function NavIcon({ kind }: { kind: string }) {
   const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const };
   switch (kind) {
@@ -242,16 +242,42 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
   );
 }
 
+/**
+ * Corner-by-corner rounded square. Rounding only the OUTER corner of each
+ * quadrant is what makes four tiles read as one divided mark rather than four
+ * loose dots; equal rounding on all corners is what the previous version got
+ * wrong.
+ */
+function tile(x: number, y: number, s: number, tl: number, tr: number, br: number, bl: number): string {
+  return [
+    `M${x + tl},${y}`,
+    `H${x + s - tr}`, `A${tr},${tr} 0 0 1 ${x + s},${y + tr}`,
+    `V${y + s - br}`, `A${br},${br} 0 0 1 ${x + s - br},${y + s}`,
+    `H${x + bl}`, `A${bl},${bl} 0 0 1 ${x},${y + s - bl}`,
+    `V${y + tl}`, `A${tl},${tl} 0 0 1 ${x + tl},${y}`,
+    'Z',
+  ].join(' ');
+}
+
+// The four quadrants carry the app's four data colours: up, down, unsigned and
+// magnitude. Geometry is shared with public/favicon.svg - change both together.
+const LOGO_Q = 8.3;   // quadrant side
+const LOGO_A = 1;     // near edge
+const LOGO_B = 10.7;  // far edge, leaving a 1.4 gap through the middle
+const LOGO_R = 3.4;   // outer corner
+const LOGO_I = 0.9;   // inner corners, kept tight so the mark closes up
+
 function LogoMark() {
   return (
-    <svg width="22" height="22" viewBox="0 0 20 20" aria-hidden>
-      <rect x="1" y="1" width="8" height="8" rx="2" fill="#bc3a30" />
-      <rect x="11" y="1" width="8" height="8" rx="2" fill="#2a78d6" />
-      <rect x="1" y="11" width="8" height="8" rx="2" fill="#6c55bd" />
-      <rect x="11" y="11" width="8" height="8" rx="2" fill="#d4d2ca" />
+    <svg width="22" height="22" viewBox="0 0 20 20" aria-hidden focusable="false">
+      <path d={tile(LOGO_A, LOGO_A, LOGO_Q, LOGO_R, LOGO_I, LOGO_I, LOGO_I)} fill="#bc3a30" />
+      <path d={tile(LOGO_B, LOGO_A, LOGO_Q, LOGO_I, LOGO_R, LOGO_I, LOGO_I)} fill="#2a78d6" />
+      <path d={tile(LOGO_A, LOGO_B, LOGO_Q, LOGO_I, LOGO_I, LOGO_I, LOGO_R)} fill="#6c55bd" />
+      <path d={tile(LOGO_B, LOGO_B, LOGO_Q, LOGO_I, LOGO_I, LOGO_R, LOGO_I)} fill="#7b786f" />
     </svg>
   );
 }
+
 
 export default function App() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
@@ -270,12 +296,12 @@ export default function App() {
 
   useEffect(() => {
     loadManifest().then((m) => {
-      // ORA's sign field is meaningless (+1 on every record) — mask it to
+      // ORA's sign field is meaningless (+1 on every record), so mask it to
       // unsigned in every drug file before any view reads it.
       configureUnsignedStreams(m.streams.flatMap((s, i) => (s[0] === 'ora' ? [i] : [])));
       setManifest(m);
     }).catch((e) => setLoadErr(String(e)));
-    // summary is an enhancement layer — the app degrades without it
+    // summary is an enhancement layer, so the app degrades without it
     loadSummary().then(setSummary).catch(() => setSummary(null));
   }, []);
 
