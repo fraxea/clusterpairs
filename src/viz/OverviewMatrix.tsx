@@ -1,4 +1,4 @@
-// OverviewMatrix.tsx — the full drug x pathway landscape as a virtualized
+// OverviewMatrix.tsx: the full drug x pathway landscape as a virtualized
 // canvas heatmap (19k cells; only the viewport slice is ever drawn). Rows are
 // drugs, columns the 50 Hallmark pathways (in any display order); a sticky
 // header canvas keeps the rotated pathway labels while the page scrolls.
@@ -33,7 +33,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
   const tip = useTip();
   const nP = manifest.pathways.length;
   // The matrix itself ends at the last column; only the HEADER canvas gets the
-  // extra overhang so the final rotated labels have room — it overflows the
+  // extra overhang so the final rotated labels have room. It overflows the
   // matrix width invisibly (transparent canvas) instead of widening the layout.
   const matrixW = GUTTER + nP * cellW;
   const headerW = matrixW + OVERHANG;
@@ -86,7 +86,7 @@ export function OverviewMatrix({ manifest, summary, mode, order, colOrder, cellW
     const wrap = wrapRef.current;
     if (!cv || !wrap) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    // viewH tracks the live window height — a height-only resize must re-size
+    // viewH tracks the live window height, so a height-only resize must re-size
     // the canvas, not just redraw into a stale one.
     let viewH = 0;
     const size = () => {

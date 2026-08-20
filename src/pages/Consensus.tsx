@@ -1,9 +1,9 @@
-// Consensus.tsx — the generic response and what remains. Most perturbations in
+// Consensus.tsx: the generic response and what remains. Most perturbations in
 // a tumor-line screen share a stereotyped program (cf. the "differential
 // expression prototype", Crow et al. PNAS 2019; frequent-hitter/generic-
 // response literature). This tab quantifies it: (A) the consensus signature
 // across all drugs, (B) how generic each drug is (leave-one-out correlation),
-// and (C) the residual layer — drug × pathway effects the consensus does NOT
+// and (C) the residual layer: drug × pathway effects the consensus does NOT
 // explain, i.e. the specific pharmacology.
 import { useMemo, useState } from 'react';
 import type { Manifest, Summary } from '../types';
@@ -30,7 +30,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
 
     // Energy captured by the consensus DIRECTION: project each drug onto the
     // unit consensus vector û = mean/‖mean‖ and compare squared projections to
-    // total squared signal — "how much of the matrix lies along the shared axis".
+    // total squared signal ("how much of the matrix lies along the shared axis").
     const sums = new Float64Array(nP);
     for (const v of nets) for (let p = 0; p < nP; p += 1) sums[p] += v[p];
     let meanNorm = 0;
@@ -101,9 +101,9 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Consensus</h1>
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
-        Most drugs in a tumor-line screen share a stereotyped program — the generic perturbation response.
+        Most drugs in a tumor-line screen share a stereotyped program, the generic perturbation response.
         Panel A is that consensus; Panel B scores how generic each drug is; Panel C lists the drug × pathway
-        effects the consensus does <span className="font-medium text-stone-700">not</span> explain — the
+        effects the consensus does <span className="font-medium text-stone-700">not</span> explain: the
         specific pharmacology.
       </p>
 
@@ -121,7 +121,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
       </div>
 
       <div className="mt-5 flex flex-wrap gap-4">
-        {/* Panel A — consensus signature forest */}
+        {/* Panel A: consensus signature forest */}
         <div className="min-w-[30rem] flex-1 rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-stone-800">A · Consensus signature</h3>
           <p className="mb-2 mt-0.5 text-xs text-stone-500">
@@ -146,7 +146,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
                   <div className="font-medium text-stone-900">{manifest.pathways[r.p]}</div>
                   <div className="mt-0.5 font-mono text-[11px] tabular-nums">
                     mean net {(100 * r.mean).toFixed(1)}% ± {(100 * r.ci).toFixed(1)} · sd {(100 * r.sd).toFixed(1)}%<br />
-                    {r.resp} responders · {Number.isFinite(r.consist) ? `${Math.round(100 * r.consist)}% ${r.majorityUp ? 'up' : 'down'}` : '—'}
+                    {r.resp} responders · {Number.isFinite(r.consist) ? `${Math.round(100 * r.consist)}% ${r.majorityUp ? 'up' : 'down'}` : 'n/a'}
                   </div>
                 </div>
               )))}
@@ -165,7 +165,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
                 />
               </svg>
               <span className="text-right font-mono text-xs tabular-nums text-stone-600">
-                {Number.isFinite(r.consist) ? `${Math.round(100 * r.consist)}%` : '—'}
+                {Number.isFinite(r.consist) ? `${Math.round(100 * r.consist)}%` : 'n/a'}
                 <span className="text-amber-500">{r.q < 0.05 ? ' ★' : ''}</span>
               </span>
             </a>
@@ -180,7 +180,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
           )}
         </div>
 
-        {/* Panel B — genericness */}
+        {/* Panel B: genericness */}
         <div className="w-[26rem] shrink-0 rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-stone-800">B · How generic is each drug?</h3>
           <p className="mb-2 mt-0.5 text-xs text-stone-500">
@@ -223,9 +223,9 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
         </div>
       </div>
 
-      {/* Panel C — residual surprises */}
+      {/* Panel C: residual surprises */}
       <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-stone-800">C · Beyond the consensus — the specific effects</h3>
+        <h3 className="text-sm font-semibold text-stone-800">C · Beyond the consensus: the specific effects</h3>
         <p className="mb-2 mt-0.5 text-xs text-stone-500">
           Largest standardized departures from the consensus (z = (net − mean) / sd, ≤3 per drug).
           These are the drug-specific calls the shared program cannot explain.
@@ -254,7 +254,7 @@ export function Consensus({ manifest, summary }: { manifest: Manifest; summary: 
         </div>
         <p className="mt-3 text-[11px] text-stone-600">
           The consensus is a property of this compendium (these cell lines, DMSO-cluster referencing,
-          q &lt; 0.05) — it describes what perturbation does here, not a universal drug response.
+          q &lt; 0.05). It describes what perturbation does here, not a universal drug response.
         </p>
       </div>
     </div>

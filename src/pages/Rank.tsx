@@ -1,4 +1,4 @@
-// Rank.tsx — pick pathways, rank drugs by significant cluster-pair calls.
+// Rank.tsx: pick pathways, rank drugs by significant cluster-pair calls.
 // Instant mode runs off summary.json (reference cutoff q < 0.05). The exact
 // mode downloads every drug file and re-ranks at the live cutoff.
 import { useMemo, useRef, useState } from 'react';
@@ -15,7 +15,7 @@ export function Rank({ manifest, summary, cutoff, setCutoff, params }: {
   setCutoff: (c: number) => void; params: URLSearchParams;
 }) {
   const [q, setQ] = useState('');
-  // the chosen pathway set IS the view — mirror it into the hash so a ranking
+  // the chosen pathway set IS the view. Mirror it into the hash so a ranking
   // can be shared or reloaded
   const [selected, setSelectedRaw] = useState<number[]>(() =>
     (params.get('pw') ?? '').split(',')
@@ -29,7 +29,7 @@ export function Rank({ manifest, summary, cutoff, setCutoff, params }: {
     });
   };
 
-  // exact mode — results carry the cutoff they were computed at, so a later
+  // exact mode: results carry the cutoff they were computed at, so a later
   // slider move can never relabel them; the banner re-offers a re-rank instead.
   const [exact, setExact] = useState<{ rows: DrugRank[]; at: number } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,10 +78,10 @@ export function Rank({ manifest, summary, cutoff, setCutoff, params }: {
     setLoading(true); setProgress(0); setExact(null);
     loadAllDrugs(manifest.drugs, (done, total) => setProgress(done / total), ctrl.signal)
       .then((all) => {
-        if (ctrl.signal.aborted) return; // selection changed mid-load — discard
+        if (ctrl.signal.aborted) return; // selection changed mid-load, so discard
         setExact({ rows: rankDrugs(all, selected, thrNow, manifest.streams.length).slice(0, 30), at });
       })
-      .catch(() => undefined) // aborted or failed — stay in instant mode
+      .catch(() => undefined) // aborted or failed: stay in instant mode
       .finally(() => setLoading(false));
   };
   const discardExact = () => { abortRef.current?.abort(); setLoading(false); setExact(null); };
@@ -209,7 +209,7 @@ export function Rank({ manifest, summary, cutoff, setCutoff, params }: {
             </div>
           ) : (
             <p className="mt-5 text-sm text-stone-500">
-              {summary ? 'No drug reaches significance for these pathways at q < 0.05.' : 'summary.json missing — run scripts/build_summary.py.'}
+              {summary ? 'No drug reaches significance for these pathways at q < 0.05.' : 'summary.json is missing. Run scripts/build_summary.py.'}
             </p>
           )}
         </>

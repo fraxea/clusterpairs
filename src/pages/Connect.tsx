@@ -1,5 +1,5 @@
-// Connect.tsx — CMap-style connectivity (Lamb 2006; Subramanian 2017's tau):
-// query a drug's pathway signature (or a hand-built up/down set) against the
+// Connect.tsx: CMap-style connectivity (Lamb 2006; Subramanian 2017's tau).
+// Query a drug's pathway signature (or a hand-built up/down set) against the
 // whole atlas. Positive cosine = mimicker, negative = reverser (the classic
 // repurposing read-out). tau is the headline specificity score; each hit's
 // cosine is decomposed into the generic proliferation-stress axis (atlas PC1)
@@ -260,8 +260,8 @@ export function Connect({ manifest, summary, params }: {
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
         Connectivity mapping over pathway space: score a query signature against every drug in the atlas.
         Positive cosine = the drug <span className="font-medium text-stone-700">mimics</span> the query program;
-        negative = it <span className="font-medium text-stone-700">reverses</span> it — the classic drug-repurposing
-        read-out. τ is each hit&rsquo;s percentile against that drug&rsquo;s own background connectivity.
+        negative = it <span className="font-medium text-stone-700">reverses</span> it, the classic
+        drug-repurposing read-out. τ is each hit&rsquo;s percentile against that drug&rsquo;s own background connectivity.
       </p>
 
       {/* query builder */}
@@ -278,7 +278,7 @@ export function Connect({ manifest, summary, params }: {
           {mode === 'drug' && (
             <>
               <span className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-sm font-medium text-stone-800">
-                {nameBySlug.get(slugs[queryIdx]) ?? '—'}
+                {nameBySlug.get(slugs[queryIdx]) ?? 'none'}
               </span>
               <div className="relative">
                 <input
@@ -353,7 +353,7 @@ export function Connect({ manifest, summary, params }: {
         {!empty && (
           <div className="mt-3">
             <div className="mb-1 flex items-baseline justify-between text-[11px] text-stone-600">
-              <span>query signature — pathways ordered by |net|, hover for names</span>
+              <span>query signature: pathways ordered by |net|, hover for names</span>
               <span className="font-mono tabular-nums">
                 ‖q‖ = {qNorm.toFixed(2)} · {qStrong} pathways with |net| &gt; 0.05
               </span>
@@ -364,8 +364,8 @@ export function Connect({ manifest, summary, params }: {
         )}
         {!empty && mode === 'drug' && qNorm < 0.2 && (
           <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Weak signature (‖q‖ &lt; 0.2, {qStrong} responsive pathways) — rankings from queries this faint are
-            unstable; even same-class drugs may not surface.
+            Weak signature (‖q‖ &lt; 0.2, {qStrong} responsive pathways). Rankings from queries this faint
+            are unstable, and even same-class drugs may not surface.
           </p>
         )}
       </div>
@@ -378,12 +378,12 @@ export function Connect({ manifest, summary, params }: {
             <StatTile label="Atlas drugs scored" value={`${hits.length}`} sub="cosine on 50-dim net-direction signatures" />
             <StatTile label="|τ| ≥ 95" value={`${nTau95}`} sub="connect above the 95th pct of their background" />
             <StatTile
-              label="Strongest mimic" value={hits[0] ? shortName(nameBySlug.get(slugs[hits[0].target]) ?? '') : '—'}
+              label="Strongest mimic" value={hits[0] ? shortName(nameBySlug.get(slugs[hits[0].target]) ?? '') : 'n/a'}
               sub={hits[0] ? `cos ${hits[0].cos.toFixed(2)} · τ ${Math.round(hits[0].tau)}` : ''}
             />
             <StatTile
               label="Strongest reverser"
-              value={hits.length ? shortName(nameBySlug.get(slugs[hits[hits.length - 1].target]) ?? '') : '—'}
+              value={hits.length ? shortName(nameBySlug.get(slugs[hits[hits.length - 1].target]) ?? '') : 'n/a'}
               sub={hits.length ? `cos ${hits[hits.length - 1].cos.toFixed(2)} · τ ${Math.round(hits[hits.length - 1].tau)}` : ''}
             />
           </div>
@@ -411,9 +411,9 @@ export function Connect({ manifest, summary, params }: {
           </div>
 
           <p className="mt-4 max-w-3xl text-xs text-stone-500">
-            The split bar decomposes each cosine into the <span className="font-medium">generic axis</span> (gray —
-            alignment with the atlas&rsquo;s first principal component: {pc1Top.join(', ')} — the shared
-            proliferation-stress response) and <span className="font-medium">specific</span> signal (colored).
+            The split bar decomposes each cosine into the <span className="font-medium">generic axis</span> (gray)
+            and <span className="font-medium">specific</span> signal (colored). The generic axis is alignment with
+            the atlas&rsquo;s first principal component ({pc1Top.join(', ')}), the shared proliferation-stress response.
             Hits that are mostly gray connect through generic cytostatic behavior, not shared pharmacology.
             Signatures are net directions from the signed streams only; this is transcriptional-program matching,
             not mechanism-of-action identification. Permutation p (1000 coordinate shuffles) and BH-FDR are in

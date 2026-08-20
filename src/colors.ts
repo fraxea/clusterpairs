@@ -1,4 +1,4 @@
-// colors.ts — the app's visual encoding layer.
+// colors.ts: the app's visual encoding layer.
 //
 // Every data color does exactly one job:
 //   sequential RED   = up-regulated strength
@@ -8,7 +8,7 @@
 //   NONSIG           = neutral "nothing here" (reads as the surface, not a value)
 //
 // Ramps are sampled by perceptual interpolation in OKLab, so equal value steps
-// look like equal color steps — replacing the old alpha-over-white blending.
+// look like equal color steps, replacing the old alpha-over-white blending.
 
 import type { DirCell } from './significance';
 
@@ -60,14 +60,14 @@ const STOPS = {
 } as const;
 export type RampName = keyof typeof STOPS;
 
-export const NONSIG = '#f0efec'; // neutral — deliberately off any ramp
+export const NONSIG = '#f0efec'; // neutral: kept off every ramp on purpose
 export const UNTESTED = '#fafaf8'; // near-surface: "no record", quieter than n.s.
 
 const LABS: Record<RampName, Lab[]> = Object.fromEntries(
   (Object.keys(STOPS) as RampName[]).map((k) => [k, STOPS[k].map(hexToLab)]),
 ) as Record<RampName, Lab[]>;
 
-// Cache sampled colors — canvas draws hit this hard.
+// Cache sampled colors. Canvas draws hit this hard.
 const rgbCache = new Map<string, [number, number, number]>();
 const cssCache = new Map<string, string>();
 
@@ -114,8 +114,8 @@ const contrast = (a: number, b: number): number =>
 const INK_LUM = relLum([0x3d, 0x3c, 0x38]);
 
 /**
- * Ink or white, whichever actually reads on ramp(name, t) — measured, not a
- * fixed lightness threshold. A single cutoff was wrong as soon as a ramp was
+ * Ink or white, whichever reads on ramp(name, t). Measured, not a fixed
+ * lightness threshold. A single cutoff was wrong as soon as a ramp was
  * re-stepped: on the low-chroma `uns` ramp white does not clear 4.5:1 until
  * t ≈ 0.77, so a 0.45 switch printed unreadable digits over a third of it.
  */

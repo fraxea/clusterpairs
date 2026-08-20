@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- provider + hook + helper */
-// tooltip.tsx — one shared tooltip layer. Cells bind it with tipBind(), which
+// tooltip.tsx: one shared tooltip layer. Cells bind it with tipBind(), which
 // wires hover AND keyboard focus, so the numbers the tooltip carries (q-values,
 // tau, per-cluster percentages) are reachable without a mouse. The tooltip node
 // is an aria-live region, so focusing a cell announces its reading.
@@ -37,8 +37,8 @@ function place(anchor: TipAnchor): { x: number; y: number } {
 
 /**
  * Bind a cell to the tooltip for both hover and focus. `content` is a thunk so
- * the JSX is built only when the cell is actually read — grids have thousands
- * of cells and must not construct tooltip nodes on every render.
+ * the JSX is built only when the cell is read. Grids have thousands of cells
+ * and must not construct tooltip nodes on every render.
  *
  * Pass `label` on non-interactive cells to give assistive tech the same reading
  * without needing the visual tooltip; it also makes the cell focusable.
@@ -56,8 +56,8 @@ export function tipBind(tip: TipApi, content: () => ReactNode, label?: string) {
 export function TooltipProvider({ children }: { children: ReactNode }) {
   const [tip, setTip] = useState<TipState | null>(null);
   // A hovered element that unmounts (route change, tab switch) never fires
-  // mouseleave, which would leave its tooltip stranded on the next page —
-  // clear on any click (capture: before React swaps the tree) or navigation.
+  // mouseleave, which would leave its tooltip stranded on the next page.
+  // Clear on any click (capture: before React swaps the tree) or navigation.
   useEffect(() => {
     const clear = () => setTip(null);
     window.addEventListener('click', clear, true);
@@ -75,7 +75,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
   return (
     <TipCtx.Provider value={api}>
       {children}
-      {/* visual tooltip (hidden from AT — the live region below carries it) */}
+      {/* visual tooltip, hidden from AT: the live region below carries it */}
       {tip && (
         <div
           aria-hidden

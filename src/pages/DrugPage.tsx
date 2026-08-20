@@ -1,7 +1,7 @@
-// DrugPage.tsx — per-drug deep dive. Three tabs:
-//   Pathways   — pathway × drug-cluster grids (pairwise counts / OVR strength)
-//   Clusters   — ref × query matrices per stream (where in cluster space?)
-//   Methods    — pathway × stream agreement for one pair + Jaccard concordance
+// DrugPage.tsx: per-drug deep dive. Three tabs:
+//   Pathways: pathway × drug-cluster grids (pairwise counts / OVR strength)
+//   Clusters: ref × query matrices per stream (where in cluster space?)
+//   Methods:  pathway × stream agreement for one pair + Jaccard concordance
 // Tab/stream/pair state is mirrored into the URL hash (shareable links).
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -22,7 +22,7 @@ type View = 'pairwise' | 'ovr_drug' | 'ovr_dmso';
 type Dir = 'up' | 'down';
 
 // The `params` prop is frozen at the last real navigation (setHashParams uses
-// replaceState, which fires no hashchange) — read the live hash when local
+// replaceState, which fires no hashchange). Read the live hash when local
 // state must reflect edits made since then (e.g. after a tab remount).
 function liveParams(): URLSearchParams {
   const h = window.location.hash;
@@ -65,7 +65,7 @@ export function DrugPage({ manifest, summary, slug, cutoff, setCutoff, params }:
   };
 
   // External hash navigation (a link carrying ?tab=…&stream=…&ref=…) must win
-  // over local state — the render-phase adjustment pattern from react.dev.
+  // over local state, following the render-phase adjustment pattern from react.dev.
   // Only a REAL navigation (new params object) may re-derive tab/stream:
   // data arrival alone must not clobber clicks made while the file loaded.
   const [synced, setSynced] = useState<{ p: URLSearchParams; d: DrugData | null }>({ p: params, d: null });
@@ -88,7 +88,7 @@ export function DrugPage({ manifest, summary, slug, cutoff, setCutoff, params }:
   }
 
   // App keys this component by slug, so a drug change remounts it and
-  // data/err start fresh — no reset needed here.
+  // data/err start fresh. No reset needed here.
   useEffect(() => {
     if (!meta) return;
     const ctrl = new AbortController();
@@ -136,7 +136,7 @@ export function DrugPage({ manifest, summary, slug, cutoff, setCutoff, params }:
             {ann[slug]?.moa?.[0] && (
               <span
                 className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-stone-600"
-                title={`ChEMBL ${ann[slug].chembl_id ?? ''} — ${ann[slug].moa.join('; ')}`}
+                title={`ChEMBL ${ann[slug].chembl_id ?? ''}: ${ann[slug].moa.join('; ')}`}
               >
                 {ann[slug].moa[0]}
               </span>
@@ -221,7 +221,7 @@ function PathwaysTab({ manifest, data, cutoff, present, streamIdx, setStream, pa
   params: URLSearchParams;
 }) {
   // Initialize from the LIVE hash (this component remounts on tab
-  // round-trips, when the params prop may be stale — see liveParams).
+  // round-trips, when the params prop may be stale; see liveParams).
   const initView = liveParams().get('view');
   const [view, setViewRaw] = useState<View>(
     initView === 'ovr_drug' || initView === 'ovr_dmso' ? initView : 'pairwise');
@@ -470,8 +470,8 @@ function OvrGrid({ manifest, data, rows, cond, thr }: {
             {row.perCluster.map((cell, ci) => (
               <td
                 key={ci} className="p-[2px]"
-                /* the fill is the only visual encoding — name it for AT so
-                   table navigation reads the value, not "blank" */
+                /* the fill is the only visual encoding, so name it for AT and
+                   table navigation reads the value instead of "blank" */
                 aria-label={`${manifest.pathways[row.pathway]}, cluster ${clusters[ci]}: ${
                   cell ? `${fmtQ(cell.nlp)}${cell.sign > 0 ? ', up' : cell.sign < 0 ? ', down' : ''}` : 'not tested'}`}
               >
@@ -754,7 +754,7 @@ function MethodsTab({ manifest, data, cutoff, refIdx, queryIdx, setPair }: {
                             </div>
                           )))}
                         >
-                          {nan ? '—' : v.toFixed(2)}
+                          {nan ? 'n/a' : v.toFixed(2)}
                         </div>
                       </td>
                     );

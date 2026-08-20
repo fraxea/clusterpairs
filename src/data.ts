@@ -1,4 +1,4 @@
-// data.ts — fetch the precomputed JSON served from public/data/.
+// data.ts: fetch the precomputed JSON served from public/data/.
 // Run build_frontend_data.py with out_dir = <app>/public/data, then
 // scripts/build_summary.py, to populate it.
 
@@ -101,7 +101,7 @@ export function loadHetero(): Promise<Hetero> {
 }
 
 let annotationsCache: Promise<Annotations> | null = null;
-/** MoA annotations are an optional layer — resolves to {} when absent. */
+/** MoA annotations are an optional layer. Resolves to {} when absent. */
 export function loadAnnotations(): Promise<Annotations> {
   annotationsCache ??= fetch(`${DATA_BASE}annotations.json`)
     .then((res) => (res.ok ? (res.json() as Promise<Annotations>) : {}))

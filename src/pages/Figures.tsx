@@ -1,6 +1,6 @@
-// Figures.tsx — manuscript-ready figures, regenerated live from the data,
-// each with a caption and one-click SVG + CSV download. Static (no hover):
-// these are the exact assets a paper or slide deck needs.
+// Figures.tsx renders manuscript-ready figures, regenerated live from the data,
+// each with a caption and one-click SVG + CSV download. They are static, with no
+// hover behaviour: the exact assets a paper or slide deck needs.
 import { useMemo, useRef } from 'react';
 import type { Manifest, Summary } from '../types';
 import {
@@ -52,7 +52,7 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
   const nets = useMemo(() => netVectors(summary.drugs), [summary.drugs]);
   const nameBySlug = useMemo(() => new Map(manifest.drugs.map((d) => [d.slug, d.name])), [manifest.drugs]);
   const slugs = useMemo(() => summary.drugs.map((d) => d.slug), [summary.drugs]);
-  // directional streams (GSEA/fgsea) — the only ones that can carry a sign
+  // directional streams (GSEA/fgsea), the only ones that can carry a sign
   const signedCount = manifest.streams.filter((s) => s[0] === 'gsea' || s[0] === 'fgsea').length;
 
   // ---------------- Fig 1: consensus forest (all 50 pathways) ----------------
@@ -87,7 +87,7 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
                 stroke="#fff" strokeWidth={1.2}
               />
               <text x={W - 6} y={y + 3} fontSize={9.5} fill={MUTED} textAnchor="end" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {Number.isFinite(r.consist) ? `${Math.round(100 * (r.consist as number))}%` : '—'}
+                {Number.isFinite(r.consist) ? `${Math.round(100 * (r.consist as number))}%` : 'n/a'}
                 {r.q < 0.05 ? ' ★' : ''}
               </text>
             </g>
@@ -141,10 +141,10 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
         <text x={m.l + 10} y={m.t + 16} fontSize={11.5} fill={INK} style={{ fontVariantNumeric: 'tabular-nums' }}>
           r = {scatter.pe.r.toFixed(2)} · n = {scatter.pe.n} · slope {scatter.fit.slope.toFixed(2)}
         </text>
-        <text x={(m.l + W - m.r) / 2} y={H - 10} fontSize={11} fill={INK} textAnchor="middle">Hypoxia — net direction</text>
+        <text x={(m.l + W - m.r) / 2} y={H - 10} fontSize={11} fill={INK} textAnchor="middle">Hypoxia net direction</text>
         <text x={14} y={(m.t + H - m.b) / 2} fontSize={11} fill={INK} textAnchor="middle"
           transform={`rotate(-90 14 ${(m.t + H - m.b) / 2})`}>
-          EMT — net direction
+          EMT net direction
         </text>
       </svg>
     );
@@ -178,7 +178,7 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
     );
     return (
       <svg ref={f3Ref} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="system-ui, sans-serif">
-        <text x={m.l} y={16} fontSize={11.5} fill={INK}>Query: Digitoxin — all {n} drugs ranked by signature cosine</text>
+        <text x={m.l} y={16} fontSize={11.5} fill={INK}>Query: Digitoxin · all {n} drugs ranked by signature cosine</text>
         <line x1={m.l} y1={zero} x2={W - m.r} y2={zero} stroke="#c3c2b7" strokeWidth={1} />
         {digi.hits.map((h, i) => (
           <rect
@@ -250,7 +250,7 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Figures</h1>
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
-        Manuscript-ready figures regenerated live from the current data — download any panel as vector SVG
+        Manuscript-ready figures regenerated live from the current data. Download any panel as vector SVG
         plus its underlying numbers as CSV. Every panel uses the fixed reference cutoff q &lt; 0.05, aggregates
         over all {manifest.streams.length} method streams unless a caption says otherwise, and states its own
         test and multiple-testing correction. Because they are computed rather than pasted in, they cannot fall
@@ -262,11 +262,11 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
           n={1} title="The consensus perturbation signature" svgRef={f1Ref}
           caption={`Mean net direction per Hallmark pathway across all ${nets.length} drugs (dot), with 95% t-based
             confidence intervals (whiskers). Net direction for a drug × pathway is (up − down) / tests, where up and
-            down come only from the ${signedCount} directional streams (GSEA·py, GSEA·R, fgsea·R) — ORA and CellSpectra are
-            direction-less and excluded from the sign. Right column: sign consistency, the share of responding drugs
-            (|net| > ${Math.round(RESPONDER_MIN * 100)}%) that agree on the majority direction; ★ marks a departure from a 50:50 split at
-            BH q < 0.05 (exact binomial, Benjamini–Hochberg across all ${manifest.pathways.length} pathways). The screen shares a
-            stereotyped programme — mitotic/proliferation and hypoxia up, estrogen-response down. This consensus is a
+            down come only from the ${signedCount} directional streams (GSEA·py, GSEA·R, fgsea·R). ORA and CellSpectra are
+            direction-less, so they are excluded from the sign. Right column: sign consistency, the share of responding
+            drugs (|net| > ${Math.round(RESPONDER_MIN * 100)}%) that agree on the majority direction; ★ marks a departure from a 50:50
+            split at BH q < 0.05 (exact binomial, Benjamini–Hochberg across all ${manifest.pathways.length} pathways). The screen shares
+            a stereotyped programme: mitotic/proliferation and hypoxia up, estrogen-response down. This consensus is a
             property of this compendium, not a universal drug response.`}
           csv={() => downloadCsv(consensus.map((r) => ({
             pathway: manifest.pathways[r.p], mean_net: r.mean.toFixed(4), ci95: r.ci.toFixed(4),
@@ -281,11 +281,11 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
 
         <FigureCard
           n={2} title="Hypoxia and EMT are co-regulated" svgRef={f2Ref}
-          caption={`Per-drug net direction of Hallmark Hypoxia vs Epithelial Mesenchymal Transition — one point per
+          caption={`Per-drug net direction of Hallmark Hypoxia vs Epithelial Mesenchymal Transition, one point per
             drug (Pearson r = ${scatter.pe.r.toFixed(2)}, n = ${scatter.pe.n}, two-tailed t-test p ${scatter.pe.p < 1e-16 ? '< 1e-16' : `= ${scatter.pe.p.toExponential(1)}`}, df = ${scatter.pe.n - 2}).
             Line: ordinary least squares with a 95% confidence band for the mean response. Each point aggregates that
             drug's (${signedCount} directional streams × all DMSO × drug cluster pairs) tests into a single net direction per
-            pathway, so all cluster structure is averaged away — the Correlation view's cluster-coupling mode resolves
+            pathway, so all cluster structure is averaged away. The Correlation view's cluster-coupling mode resolves
             it. Note the shared-potency confound: drugs that perturb strongly move every pathway, which inflates this
             correlation; the potency-adjusted partial correlation is reported in the Correlation view.`}
           csv={() => downloadCsv(scatter.pts.map((p) => ({
@@ -300,10 +300,10 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
           n={3} title="Connectivity recovers drug classes without metadata" svgRef={f3Ref}
           caption={`Connectivity waterfall for the Digitoxin query: every other drug in the library ranked by cosine
             similarity between ${manifest.pathways.length}-dimensional net-direction signatures (positive = mimicker, left; negative =
-            reverser, right). The top mimicker is Ouabain, the other cardiac glycoside in the library — recovered from
-            pathway space alone, with no drug metadata, target or class information used in the scoring. The
+            reverser, right). The top mimicker is Ouabain, the other cardiac glycoside in the library. It is recovered
+            from pathway space alone, with no drug metadata, target or class information used in the scoring. The
             accompanying CSV carries, for every target: cosine, τ (the |cosine| percentile against that target's own
-            background distribution of connectivities to the whole atlas — |τ| ≥ 95 is the recommended filter), a
+            background distribution of connectivities to the whole atlas; |τ| ≥ 95 is the recommended filter), a
             two-sided p from 1,000 permutations of the query's coordinates, BH-FDR across all targets, and the split
             of each cosine into its generic component (projection onto the atlas first principal component, the shared
             proliferation-stress axis) versus the pathway-specific remainder. This is transcriptional-programme
@@ -320,8 +320,8 @@ export function Figures({ manifest, summary }: { manifest: Manifest; summary: Su
         <FigureCard
           n={4} title="Method streams call significance at very different rates" svgRef={f4Ref}
           caption={`Fraction of all pathway tests called significant at q < 0.05 by each of the ${manifest.streams.length} method streams,
-            over ${fmtCompact(summary.totals.records)} tests in total. Every stream sees identical input — the same cells, the same
-            ${manifest.pathways.length} gene sets, the same cluster pairs, the same BH correction and the same cutoff — so the only variable
+            over ${fmtCompact(summary.totals.records)} tests in total. Every stream sees identical input: the same cells, the same
+            ${manifest.pathways.length} gene sets, the same cluster pairs, the same BH correction and the same cutoff. The only variable
             is the enrichment method and its implementation. The calling rate differs several-fold between method
             families (violet = the direction-less streams, ORA and CellSpectra), while the same method implemented in
             Python and in R behaves almost identically. Method choice, not implementation language, is the dominant

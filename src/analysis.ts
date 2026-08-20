@@ -1,4 +1,4 @@
-// analysis.ts — hand-rolled matrix analysis and statistics over summary.json.
+// analysis.ts: hand-rolled matrix analysis and statistics over summary.json.
 // Pure functions, no React, no dependencies: drug fingerprints, pathway
 // correlation, seriation (PC1 ordering + average-linkage clustering), exact
 // inference (incomplete beta → t / sign tests), OLS, and the lasso path.
@@ -21,7 +21,7 @@ export function rng(seed: number): () => number {
 /**
  * 150-dim signature per drug: per pathway the fraction of tests significant
  * up / down / unsigned (q < 0.05). Direction comes only from the signed
- * streams (GSEA/fgsea — ORA and CellSpectra are unsigned by construction).
+ * streams, GSEA and fgsea; ORA and CellSpectra are unsigned by construction.
  */
 export function drugFingerprints(drugs: SummaryDrug[]): Float64Array[] {
   return drugs.map((d) => {
@@ -108,7 +108,7 @@ export function pc1Scores(vecs: Float64Array[]): number[] {
 
 /**
  * Average-linkage agglomerative clustering (Lance–Williams update) over a
- * distance matrix; returns the dendrogram leaf order. O(n³) — fine for n ≤ ~400.
+ * distance matrix; returns the dendrogram leaf order. O(n³), fine for n ≤ ~400.
  */
 export function averageLinkageOrder(dist: number[][]): number[] {
   const n = dist.length;
@@ -528,7 +528,7 @@ export interface ConnectivityHit {
 
 /**
  * Background |cosine| distributions per target (each vs all other atlas
- * drugs), sorted ascending — the reference set for tau. O(n²·p), ~4M mults.
+ * drugs), sorted ascending: the reference set for tau. O(n²·p), ~4M mults.
  */
 export function connectivityBackground(vecs: Float64Array[]): number[][] {
   const n = vecs.length;
@@ -626,7 +626,7 @@ export function connectivity(
 
 // ============================ heterogeneity =================================
 // Subpopulation-selective response: per-drug dispersion of per-query-cluster
-// net-direction profiles (directional streams only — see hetero.json). RMS
+// net-direction profiles (directional streams only, see hetero.json). RMS
 // profile distance, NOT 1−r: flat/weak profiles decorrelate and would inflate
 // a correlation-based metric.
 
@@ -745,13 +745,13 @@ export function consensusRows(nets: Float64Array[], nP: number): ConsensusRow[] 
 //
 // For a fixed drug cluster q, the observations are that drug's DMSO reference
 // clusters r = 1..n_ref. Each (r, q) cell gives pathway A and pathway B a value
-// in three channels — up, down, and unsigned — and we correlate A against B
+// in three channels (up, down, unsigned), and we correlate A against B
 // across r, per channel.
 //
 // n = n_ref is only 9-12, so: Spearman (robust to the nlp clipping at 300 and
 // to heavy tails) with an exact-style permutation p, and BH across the
-// cluster x channel grid. Rho estimates at this n are noisy by construction —
-// the UI must say so.
+// cluster x channel grid. Rho estimates at this n are noisy by construction,
+// and the UI must say so.
 
 export type Channel = 'up' | 'down' | 'uns';
 export const CHANNELS: Channel[] = ['up', 'down', 'uns'];
@@ -801,7 +801,7 @@ export function channelCube(
   return { nRef, nQuery, nP, up, down, uns };
 }
 
-/** Pearson on two rank vectors — the inner loop of the permutation test. */
+/** Pearson on two rank vectors: the inner loop of the permutation test. */
 function rhoOfRanks(rx: number[], ry: number[]): number {
   return pearson(rx, ry);
 }
@@ -870,7 +870,7 @@ export function pairCoupling(
 
 /**
  * Which pathways are most active in each drug cluster (all streams, all DMSO
- * refs, at the fixed reference cutoff) — the "what else is going on here"
+ * refs, at the fixed reference cutoff): the "what else is going on here"
  * companion to the coupling lines.
  */
 export function clusterEnrichment(
@@ -910,7 +910,7 @@ export interface MoaClass {
   withinMed: number;      // median pairwise cosine inside the class
   betweenMed: number;     // median cosine from members to every non-member
   gap: number;            // withinMed - betweenMed; the coherence score
-  strengthMed: number;    // median ||net|| of members — weak classes are noise
+  strengthMed: number;    // median ||net|| of members (weak classes are noise)
 }
 
 const median = (xs: number[]): number => {

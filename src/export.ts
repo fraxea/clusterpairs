@@ -1,4 +1,4 @@
-// export.ts — download on-page SVGs as standalone figure files and data
+// export.ts: download on-page SVGs as standalone figure files and data
 // tables as CSV (for manuscripts, slides, and supplementary material).
 
 /** RFC-4180-ish CSV download. Rows share the keys of the first row. */

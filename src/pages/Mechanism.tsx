@@ -1,4 +1,4 @@
-// Mechanism.tsx — does a Hallmark-pathway signature encode a drug's mechanism?
+// Mechanism.tsx: does a Hallmark-pathway signature encode a drug's mechanism?
 //
 // The standard benchmark (MOASL, Jiang 2023; GPAR, Gao 2022) ranks same-MoA
 // drug pairs against different-MoA pairs by signature similarity and reports
@@ -7,8 +7,8 @@
 // unrelated drugs pulled together by a shared toxicity programme.
 //
 // The honest headline here is a NEGATIVE: at 50-pathway resolution the global
-// AUROC sits at chance. What is real is the per-class variation — some
-// mechanisms converge tightly, others are anti-coherent — so the page leads
+// AUROC sits at chance. What is real is the per-class variation: some
+// mechanisms converge tightly, others are anti-coherent. So the page leads
 // with the global number and then lets you interrogate individual classes.
 import { useEffect, useMemo, useState } from 'react';
 import type { Annotations, Manifest, Summary } from '../types';
@@ -20,8 +20,8 @@ import { Spinner, StatTile } from '../ui';
 import { setHashParams } from '../format';
 import { tipBind, useTip } from '../tooltip';
 
-const COHERENT = '#047857';   // emerald — deliberately NOT the red/blue that
-const ANTI = '#b45309';       // amber     encode up/down regulation elsewhere
+const COHERENT = '#047857';   // emerald: not the red/blue that encode
+const ANTI = '#b45309';       // amber    up/down regulation elsewhere
 
 export function Mechanism({ manifest, summary, params }: {
   manifest: Manifest; summary: Summary; params: URLSearchParams;
@@ -64,9 +64,9 @@ export function Mechanism({ manifest, summary, params }: {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Mechanism</h1>
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
-        Does a {manifest.pathways.length}-pathway signature encode what a drug actually does? Using ChEMBL
+        Does a {manifest.pathways.length}-pathway signature encode what a drug does? Using ChEMBL
         primary mechanisms as labels, same-mechanism drug pairs are ranked against different-mechanism pairs
-        by signature similarity — the standard benchmark from the MoA-prediction literature.
+        by signature similarity, the standard benchmark from the MoA-prediction literature.
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -79,12 +79,12 @@ export function Mechanism({ manifest, summary, params }: {
           sub={`drugs in ${bm.nClasses} mechanisms with ≥3 members (${annotated} of ${manifest.drugs.length} have any ChEMBL mechanism)`}
         />
         <StatTile
-          label="Most coherent" value={bm.classes[0]?.mechanism.split(' ').slice(0, 2).join(' ') ?? '—'}
+          label="Most coherent" value={bm.classes[0]?.mechanism.split(' ').slice(0, 2).join(' ') ?? 'n/a'}
           sub={bm.classes[0] ? `gap +${bm.classes[0].gap.toFixed(2)} · n = ${bm.classes[0].members.length}` : ''}
         />
         <StatTile
           label="Least coherent"
-          value={bm.classes[bm.classes.length - 1]?.mechanism.split(' ').slice(0, 2).join(' ') ?? '—'}
+          value={bm.classes[bm.classes.length - 1]?.mechanism.split(' ').slice(0, 2).join(' ') ?? 'n/a'}
           sub={bm.classes.length ? `gap ${bm.classes[bm.classes.length - 1].gap.toFixed(2)}` : ''}
         />
       </div>
@@ -102,13 +102,13 @@ export function Mechanism({ manifest, summary, params }: {
           <>
             <span className="font-medium text-stone-900">Globally, mechanism is not recovered.</span> Across
             {' '}{bm.samePairs.toLocaleString()} same-mechanism and {bm.diffPairs.toLocaleString()} different-mechanism pairs the
-            AUROC is {bm.auroc.toFixed(3)} — indistinguishable from the {bm.nullMed.toFixed(3)} expected when the
+            AUROC is {bm.auroc.toFixed(3)}, indistinguishable from the {bm.nullMed.toFixed(3)} expected when the
             mechanism labels are shuffled (p = {bm.p.toFixed(3)}). Two drugs sharing a target are, on average, no
             more alike in Hallmark-pathway space than two drugs picked at random. This matches the published
             difficulty of matching low-transcriptional-activity compounds, and is compounded here by the coarse
             resolution: {manifest.pathways.length} pathways cannot separate mechanisms that converge on the same
             broad programmes. <span className="font-medium text-stone-900">The per-class picture below is
-            where the signal actually lives</span> — coherence varies from strongly positive to negative.
+            where the signal lives</span>. Coherence varies from strongly positive to negative.
           </>
         )}
       </div>
@@ -156,7 +156,7 @@ export function Mechanism({ manifest, summary, params }: {
                       </div>
                       <div className="mt-0.5 text-[11px] text-stone-500">
                         {c.members.length} drugs · median ‖net‖ {c.strengthMed.toFixed(2)}
-                        {weak && ' — weak signatures, treat with caution'}
+                        {weak && ' · weak signatures, treat with caution'}
                       </div>
                     </div>
                   ), `${c.mechanism}, coherence gap ${c.gap.toFixed(2)}, ${c.members.length} drugs`)}
@@ -190,7 +190,7 @@ export function Mechanism({ manifest, summary, params }: {
             <p className="mb-3 mt-0.5 text-xs text-stone-500">
               Each member scored against the centroid of the <em>other</em> members (leave-one-out, so one
               outlier cannot drag the centroid onto itself). High = behaves like its class. Low on a
-              <B> strong</B> signature is the interesting case — a candidate off-target or polypharmacology
+              <B> strong</B> signature is the interesting case: a candidate off-target or polypharmacology
               effect. Low on a <B>weak</B> signature more likely means the response was too small to measure.
             </p>
             <div className="grid grid-cols-[1fr_4.5rem_4.5rem] gap-x-3 border-b border-stone-200 pb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
@@ -233,7 +233,7 @@ export function Mechanism({ manifest, summary, params }: {
             })}
             <p className="mt-3 text-[11px] text-stone-500">
               ‖net‖ is the length of the drug&rsquo;s {manifest.pathways.length}-dimensional net-direction
-              vector — how much measurable transcriptional response it produced at all. Compare any member
+              vector: how much measurable transcriptional response it produced at all. Compare any member
               against the whole library in the{' '}
               <a className="text-emerald-700 hover:text-emerald-800" href={`#/connect?q=${encodeURIComponent(summary.drugs[members[0]?.drug ?? 0].slug)}`}>
                 Connectivity view →
@@ -245,11 +245,11 @@ export function Mechanism({ manifest, summary, params }: {
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-xs leading-relaxed text-stone-700">
         <span className="font-medium text-stone-900">How to read this honestly.</span> Classes here have 3–10
-        members, so a coherence gap is an estimate from very few pairs and no per-class p-value is claimed —
-        the ranking is descriptive. ChEMBL&rsquo;s primary mechanism is one label for a drug that may hit many
-        targets, and a class that looks incoherent may simply be heterogeneous in reality. A high gap on weak
+        members, so a coherence gap is an estimate from very few pairs and no per-class p-value is claimed.
+        The ranking is descriptive. ChEMBL&rsquo;s primary mechanism is one label for a drug that may hit many
+        targets, and a class that looks incoherent may be heterogeneous in reality. A high gap on weak
         signatures can be produced by noise alone, which is why median ‖net‖ is shown beside every class.
-        Finally, this measures whether mechanism is visible <em>at Hallmark-pathway resolution</em> — a negative
+        Finally, this measures whether mechanism is visible <em>at Hallmark-pathway resolution</em>. A negative
         result is a statement about this representation, not about the drugs.
       </div>
     </div>

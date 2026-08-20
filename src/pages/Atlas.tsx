@@ -1,4 +1,4 @@
-// Atlas.tsx — the whole-screen landscape: every drug x every pathway at the
+// Atlas.tsx: the whole-screen landscape. Every drug x every pathway at the
 // reference cutoff, with direction or activity encoding, sortable rows, and
 // clustered (seriated) orderings that surface the block/community structure.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,11 +14,11 @@ import { GUTTER, OVERHANG, OverviewMatrix, type AtlasMode } from '../viz/Overvie
 type SortKind = { kind: 'activity' } | { kind: 'name' } | { kind: 'cluster' } | { kind: 'pathway'; p: number };
 
 /**
- * Size the cells so the whole matrix FITS its container — 50 columns is little
- * enough that horizontal scrolling is never necessary. Measures the real
- * container (previously it guessed from window.innerWidth, which ignores the
- * page's max-width and overshot by ~60px, forcing a scrollbar). The measured
- * element is w-full so its width never depends on the matrix — no feedback loop.
+ * Size the cells so the whole matrix FITS its container. With only 50 columns,
+ * horizontal scrolling is never necessary. Measures the real container
+ * (previously it guessed from window.innerWidth, which ignores the page's
+ * max-width and overshot by ~60px, forcing a scrollbar). The measured element
+ * is w-full, so its width never depends on the matrix: no feedback loop.
  */
 function useFitCellW(nP: number): [React.RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement>(null);
@@ -84,8 +84,8 @@ export function Atlas({ manifest, summary, params }: {
     [manifest.drugs],
   );
 
-  // Spectral (PC1) scores over drug fingerprints — computed once, used by the
-  // "Clustered" row ordering so similar drugs sit adjacently.
+  // Spectral (PC1) scores over drug fingerprints, computed once and used by
+  // the "Clustered" row ordering so similar drugs sit adjacently.
   const pcScores = useMemo(
     () => (sort.kind === 'cluster' ? pc1Scores(drugFingerprints(summary.drugs)) : null),
     [summary.drugs, sort.kind],
@@ -141,7 +141,7 @@ export function Atlas({ manifest, summary, params }: {
           <Segmented
             options={[
               { value: 'activity', label: 'Most active' },
-              { value: 'cluster', label: 'Clustered', title: 'Rows ordered along the first principal component of the drug fingerprints — similar drugs sit together' },
+              { value: 'cluster', label: 'Clustered', title: 'Rows ordered along the first principal component of the drug fingerprints, so similar drugs sit together' },
               { value: 'name', label: 'A–Z' },
             ]}
             value={sort.kind === 'pathway' ? 'activity' : sort.kind}
@@ -188,9 +188,9 @@ export function Atlas({ manifest, summary, params }: {
       </div>
 
       {/* The outer div is the measuring reference (w-full, so its width never
-          depends on the matrix). The inner is w-fit — NOT a scroll container,
-          which would become the sticky band's scrollport and stop the pathway
-          labels sticking (overflow-x:auto coerces overflow-y to auto). */}
+          depends on the matrix). The inner is w-fit and must NOT be a scroll
+          container: that would become the sticky band's scrollport and stop the
+          pathway labels sticking (overflow-x:auto coerces overflow-y to auto). */}
       <div ref={fitRef} className="mt-4 w-full">
         <OverviewMatrix
           manifest={manifest} summary={summary} mode={mode} order={order}

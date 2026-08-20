@@ -1,6 +1,6 @@
-// Home.tsx — the drug index: hero stats + triage-ready cards, each carrying a
-// 50-pathway signature strip derived from summary.json (one CSS gradient per
-// card — no per-cell DOM).
+// Home.tsx: the drug index. Hero stats plus triage-ready cards, each carrying a
+// 50-pathway signature strip derived from summary.json. One CSS gradient per
+// card, so there is no per-cell DOM.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, Summary, SummaryDrug } from '../types';
 import { prefetchDrug } from '../data';
@@ -69,7 +69,7 @@ export function Home({ manifest, summary }: { manifest: Manifest; summary: Summa
           />
           <input
             ref={inputRef}
-            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter drugs — press /"
+            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter drugs (press /)"
             className="w-56 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-stone-500"
           />
         </div>
@@ -101,20 +101,20 @@ export function Home({ manifest, summary }: { manifest: Manifest; summary: Summa
   );
 }
 
-// Curated entry points — each card is a finding the atlas demonstrates,
+// Curated entry points. Each card is a finding the atlas demonstrates,
 // deep-linked to the exact configured view that shows it.
 const HIGHLIGHTS: Array<{ stat: string; title: string; desc: string; href: string; color: string }> = [
   {
     stat: 'r = 0.77',
     title: 'Hypoxia and EMT move together',
-    desc: 'Across 379 drugs the two programs are co-regulated — same direction in 81% of directional calls.',
+    desc: 'Across 379 drugs the two programs are co-regulated: same direction in 81% of directional calls.',
     href: '#/correlate',
     color: '#bc3a30',
   },
   {
     stat: 'τ = 100',
     title: 'Drug classes self-assemble',
-    desc: 'Digitoxin’s top connectivity hit is Ouabain — cardiac glycosides find each other from pathway space alone.',
+    desc: 'Digitoxin’s top connectivity hit is Ouabain. Cardiac glycosides find each other from pathway space alone.',
     href: '#/connect',
     color: '#2a78d6',
   },
@@ -128,21 +128,21 @@ const HIGHLIGHTS: Array<{ stat: string; title: string; desc: string; href: strin
   {
     stat: '24%',
     title: 'One shared program dominates',
-    desc: 'A quarter of the whole matrix lies on a single generic stress axis — see what remains after removing it.',
+    desc: 'A quarter of the whole matrix lies on a single generic stress axis. See what remains once it is removed.',
     href: '#/consensus',
     color: '#7b786f',
   },
   {
     stat: 'J = 0.29',
     title: 'Methods disagree more than languages',
-    desc: 'GSEA agrees with itself across Python and R (J ≈ 0.8) — but ORA and GSEA overlap far less.',
+    desc: 'GSEA agrees with itself across Python and R (J ≈ 0.8), but ORA and GSEA overlap far less.',
     href: '#/drug/abemaciclib-ddf4f5?tab=methods',
     color: '#bc3a30',
   },
   {
     stat: '50 × 379',
     title: 'The whole screen in one figure',
-    desc: 'Every drug × pathway call at a glance — clustered so mechanism blocks emerge.',
+    desc: 'Every drug × pathway call at a glance, clustered so mechanism blocks emerge.',
     href: '#/atlas',
     color: '#2a78d6',
   },
@@ -152,7 +152,7 @@ function Highlights() {
   return (
     <div className="mt-6">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">What the atlas shows — start here</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Start here: what the atlas shows</h2>
         <a href="#/guide" className="text-xs font-medium text-emerald-700 hover:text-emerald-800">how to read the views →</a>
       </div>
       <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

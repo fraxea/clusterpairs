@@ -1,9 +1,9 @@
-// ClusterCoupling.tsx — per-cluster pathway-pair coupling for ONE drug.
+// ClusterCoupling.tsx: per-cluster pathway-pair coupling for ONE drug.
 //
 // The library-wide scatter (one point per drug) averages cluster structure
 // away. Here, for each drug cluster separately, the drug's DMSO reference
 // clusters are the observations and we correlate pathway A against pathway B
-// across them — in three channels (up / down / unsigned). The line plot shows
+// across them, in three channels (up / down / unsigned). The line plot shows
 // whether the two programs are coupled everywhere, or only in some
 // subpopulations.
 //
@@ -45,7 +45,7 @@ export function ClusterCoupling({ manifest, slug, aIdx, bIdx, onPickDrug }: {
   const meta = manifest.drugs.find((d) => d.slug === slug) ?? null;
 
   // Correlate keys this component by slug, so a drug change remounts it and
-  // data/err/selection start fresh — no reset needed here.
+  // data/err/selection start fresh. No reset needed here.
   useEffect(() => {
     if (!meta) return;
     const ctrl = new AbortController();
@@ -132,7 +132,7 @@ export function ClusterCoupling({ manifest, slug, aIdx, bIdx, onPickDrug }: {
 
       {aIdx === bIdx && meta && (
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Both pathways are the same — correlation is trivially 1. Pick two different pathways above.
+          Both pathways are the same, so the correlation is trivially 1. Pick two different pathways above.
         </p>
       )}
 
@@ -154,7 +154,7 @@ export function ClusterCoupling({ manifest, slug, aIdx, bIdx, onPickDrug }: {
           <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-sm font-semibold text-stone-800">
-                {manifest.pathways[aIdx]} × {manifest.pathways[bIdx]} — coupling per drug cluster
+                {manifest.pathways[aIdx]} × {manifest.pathways[bIdx]}: coupling per drug cluster
               </h3>
               <span className="flex shrink-0 gap-1.5">
                 <button
@@ -271,7 +271,7 @@ export function ClusterCoupling({ manifest, slug, aIdx, bIdx, onPickDrug }: {
               across the {nLive} tests shown; p from 2,000 permutations. Gaps = the channel has no variance
               in that cluster (e.g. the pathway is never called down).
               <strong className="font-medium text-stone-700"> With n = {model.nRef}, ρ must exceed roughly 0.6
-              to reach significance and individual estimates are noisy — read this as exploratory.</strong>
+              to reach significance, and individual estimates are noisy. Read this as exploratory.</strong>
             </p>
           </div>
 

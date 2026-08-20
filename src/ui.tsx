@@ -1,4 +1,4 @@
-// ui.tsx — shared chrome components: controls, legends, small bits.
+// ui.tsx: shared chrome components (controls, legends, small bits).
 import type { ReactNode } from 'react';
 import { rampGradient, NET_SAT, NONSIG } from './colors';
 import { HATCH } from './format';
@@ -34,7 +34,7 @@ export function CutoffSlider({ cutoff, onChange, className = '' }: {
   return (
     <label
       className={`group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5 py-2 shadow-sm ${className}`}
-      title="Significance threshold — this view re-thresholds live; each tick is one decade of q"
+      title="Significance threshold. This view re-thresholds live; each tick is one decade of q"
     >
       <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600">
         cutoff

@@ -1,4 +1,4 @@
-// types.ts — mirrors the contract emitted by build_frontend_data.py
+// types.ts: mirrors the contract emitted by build_frontend_data.py
 // manifest.json + drugs/<slug>.json. Indices in Cells reference the global
 // manifest.pathways / manifest.streams and the drug's own cluster lists.
 
@@ -50,7 +50,7 @@ export interface DrugData {
   ovr: OvrCells;
 }
 
-// ---- summary.json — emitted by scripts/build_summary.py --------------------
+// ---- summary.json: emitted by scripts/build_summary.py --------------------
 // Compact cross-drug aggregates at the fixed reference cutoff (q < 0.05),
 // so global views never have to download the 240 MB of per-drug files.
 
@@ -83,7 +83,7 @@ export interface Summary {
   drugs: SummaryDrug[];
 }
 
-// ---- hetero.json — per-query-cluster tallies (scripts/build_summary.py) ----
+// ---- hetero.json: per-query-cluster tallies (scripts/build_summary.py) ----
 export interface HeteroDrug {
   slug: string;
   clusters: string[];       // query cluster labels
@@ -99,7 +99,7 @@ export interface Hetero {
   drugs: HeteroDrug[];
 }
 
-// ---- annotations.json — ChEMBL mechanisms (scripts/fetch_annotations.py) ----
+// ---- annotations.json: ChEMBL mechanisms (scripts/fetch_annotations.py) ----
 export interface DrugAnnotation {
   chembl_id?: string;
   matched_name?: string;

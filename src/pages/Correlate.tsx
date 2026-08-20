@@ -1,4 +1,4 @@
-// Correlate.tsx — is pathway A regulated in the same direction as pathway B
+// Correlate.tsx: is pathway A regulated in the same direction as pathway B
 // across the drug library? Scatter (one point per drug) + OLS fit with 95%
 // confidence band + Pearson / Spearman / sign-concordance / potency-adjusted
 // statistics. Defaults to Hypoxia vs Epithelial Mesenchymal Transition.
@@ -39,10 +39,10 @@ function MetricControl({ metric, onChange }: { metric: Metric; onChange: (m: Met
   return (
     <Segmented
       options={[
-        { value: 'net' as Metric, label: 'Net direction', title: '(up − down) / tests — signed regulation' },
+        { value: 'net' as Metric, label: 'Net direction', title: '(up − down) / tests, signed regulation' },
         { value: 'up' as Metric, label: <>{dot(ramp('up', 0.55))}Up</>, title: 'fraction of tests significantly up-regulated' },
         { value: 'down' as Metric, label: <>{dot(ramp('down', 0.55))}Down</>, title: 'fraction of tests significantly down-regulated' },
-        { value: 'act' as Metric, label: 'Activity', title: 'significant fraction — magnitude only' },
+        { value: 'act' as Metric, label: 'Activity', title: 'significant fraction, magnitude only' },
       ]}
       value={metric} onChange={onChange}
     />
@@ -75,7 +75,7 @@ function ModeSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
   return (
     <div className="mt-5 flex flex-wrap gap-3">
       {card('pair', 'Pair scatter',
-        'Two pathways head-to-head — one point per drug, regression fit and statistical tests.',
+        'Two pathways head-to-head. One point per drug, with a regression fit and statistical tests.',
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <line x1="4" y1="19" x2="20" y2="6" stroke={ink(view === 'pair')} strokeWidth="1.6" strokeLinecap="round" />
           <circle cx="7" cy="14" r="1.9" fill={ink(view === 'pair')} />
@@ -84,7 +84,7 @@ function ModeSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
           <circle cx="17" cy="10" r="1.9" fill={ink(view === 'pair')} />
         </svg>)}
       {card('cluster', 'Per-cluster coupling',
-        'One drug, cluster by cluster — are the two pathways coupled in every subpopulation, or only some?',
+        'One drug, cluster by cluster. Are the two pathways coupled in every subpopulation, or only some?',
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <polyline points="3,17 8,9 13,13 18,5 21,8" stroke={ink(view === 'cluster')} strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
           <circle cx="8" cy="9" r="1.8" fill={ink(view === 'cluster')} />
@@ -92,7 +92,7 @@ function ModeSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
           <circle cx="18" cy="5" r="1.8" fill={ink(view === 'cluster')} />
         </svg>)}
       {card('lasso', 'Lasso selection',
-        'One response vs the other 49 — sparse regression keeps only the pathways with independent signal.',
+        'One response vs the other 49. Sparse regression keeps only the pathways with independent signal.',
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <line x1="12" y1="3" x2="12" y2="21" stroke={ink(view === 'lasso')} strokeWidth="1.2" />
           <rect x="12.8" y="5" width="7.5" height="3" fill={ink(view === 'lasso')} />
@@ -293,8 +293,8 @@ export function Correlate({ manifest, summary, params }: {
                 clusters, separately for up-regulation, down-regulation and the direction-less methods.</>
             ) : (
               <>Which pathways jointly predict the response pathway across the {summary.drugs.length} drugs?
-                Lasso (L1) regression shrinks redundant predictors to exactly zero — only the pathways that
-                carry independent signal keep a coefficient. λ chosen by 5-fold cross-validation.</>
+                Lasso (L1) regression shrinks redundant predictors to exactly zero, so only the pathways
+                that carry independent signal keep a coefficient. λ chosen by 5-fold cross-validation.</>
             )}
           </p>
         </div>
@@ -351,7 +351,7 @@ export function Correlate({ manifest, summary, params }: {
 
       {view === 'pair' && same && (
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Both axes are the same pathway — the correlation is trivially 1. Pick two different pathways.
+          Both axes are the same pathway, so the correlation is trivially 1. Pick two different pathways.
         </p>
       )}
 
@@ -478,7 +478,7 @@ export function Correlate({ manifest, summary, params }: {
                 )}
               </p>
               <p className="mt-2 text-xs text-stone-500">
-                Potency-adjusted r = {stats.partial.r.toFixed(3)} ({fmtP(stats.partial.p)}) — Pearson on
+                Potency-adjusted r = {stats.partial.r.toFixed(3)} ({fmtP(stats.partial.p)}) is Pearson on
                 residuals after regressing both variables on each drug&rsquo;s overall activity, so shared
                 &ldquo;strong drugs move everything&rdquo; signal is removed.
                 {' '}Correlation across perturbations is co-response, not a causal link.
@@ -527,8 +527,8 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
     [manifest.pathways, yIdx],
   );
 
-  // ~0.9 s of matrix math — the timeout lets the spinner paint first; results
-  // for stale inputs are ignored via the key rather than reset synchronously.
+  // ~0.9 s of matrix math. The timeout lets the spinner paint first; results for
+  // stale inputs are ignored via the key rather than reset synchronously.
   useEffect(() => {
     const t = window.setTimeout(() => {
       const value = metricValue(metric);
@@ -589,7 +589,7 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
             sub={`of ${preds.length} predictors · nonzero lasso coefficients`}
           />
           <StatTile
-            label="Cross-validated R²" value={Number.isFinite(cvR2) ? cvR2.toFixed(2) : '—'}
+            label="Cross-validated R²" value={Number.isFinite(cvR2) ? cvR2.toFixed(2) : 'n/a'}
             sub={`in-sample R² = ${res.r2[idx].toFixed(2)} · n = ${summary.drugs.length}`}
           />
         </div>
@@ -632,7 +632,7 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
 
         <p className="mt-3 max-w-md text-xs text-stone-500">
           Standardized coefficients: expected change (in SD of the response) per SD of the predictor,
-          holding the other selected pathways fixed. Lasso zeroes redundant predictors — among strongly
+          holding the other selected pathways fixed. Lasso zeroes redundant predictors: among strongly
           correlated pathways it keeps one representative, so an excluded pathway is not evidence of
           no association. Metric: {METRIC_LABEL[metric]} at q &lt; 0.05.
         </p>
@@ -645,7 +645,7 @@ function LassoView({ manifest, summary, yIdx, metric, onInspect }: {
         </div>
         {selected.length === 0 ? (
           <p className="mt-3 text-sm text-stone-500">
-            No pathway survives this much regularization — move the λ slider right.
+            No pathway survives this much regularization. Move the λ slider right.
           </p>
         ) : (
           <svg

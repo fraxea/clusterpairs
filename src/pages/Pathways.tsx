@@ -1,4 +1,4 @@
-// Pathways.tsx — index of the 50 Hallmark pathways with breadth-of-effect
+// Pathways.tsx: index of the 50 Hallmark pathways with breadth-of-effect
 // stats, plus the per-pathway detail page ranking drugs by direction (tornado).
 import { useMemo, useState } from 'react';
 import type { Manifest, Summary, SummaryDrug } from '../types';
@@ -9,8 +9,8 @@ import { fmtCompact, fmtPct, msigdbUrl, pathwaySlug, setHashParams } from '../fo
 import { tipBind, useTip } from '../tooltip';
 
 // A drug "responds strongly" in a pathway when ≥35% of its (stream ×
-// cluster-pair) tests are significant — chosen from the empirical distribution
-// so the stat actually discriminates (at 5% every pathway saturates at 379).
+// cluster-pair) tests are significant. The threshold comes from the empirical
+// distribution, so the stat discriminates (at 5% every pathway saturates at 379).
 const ACTIVE_MIN = 0.35;
 
 // ------------------------------------------------------------------ index ----
@@ -70,7 +70,7 @@ export function PathwaysIndex({ manifest, summary }: { manifest: Manifest; summa
 }
 
 // ------------------------------------------------------- distribution ----
-/** How the whole library responds to one pathway — drug count per activity bin. */
+/** How the whole library responds to one pathway: drug count per activity bin. */
 function ActivityHistogram({ values, total }: { values: number[]; total: number }) {
   const tip = useTip();
   const BINS = 30;
@@ -83,7 +83,7 @@ function ActivityHistogram({ values, total }: { values: number[]; total: number 
   return (
     <div className="mt-3 rounded-lg border border-stone-200 bg-white px-4 py-3">
       <div className="text-xs text-stone-500">
-        Distribution of drug activity — {values.length} of {total} drugs with ≥1 significant test
+        Distribution of drug activity across the {values.length} of {total} drugs with ≥1 significant test
       </div>
       <svg viewBox={`0 0 ${W} ${H + 16}`} className="mt-2 block w-full max-w-2xl">
         {counts.map((n, i) => {
@@ -181,7 +181,7 @@ export function PathwayPage({ manifest, summary, slug, params }: {
             { value: 'total', label: 'Total' },
             { value: 'up', label: 'Up' },
             { value: 'down', label: 'Down' },
-            { value: 'mixed', label: 'Discordant', title: 'Both directions called — heterogeneous response' },
+            { value: 'mixed', label: 'Discordant', title: 'Both directions called, a heterogeneous response' },
           ]}
           value={sort} onChange={setSort}
         />

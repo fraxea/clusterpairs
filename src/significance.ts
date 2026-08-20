@@ -1,4 +1,4 @@
-// significance.ts — pure functions over the columnar cells. No React here, so
+// significance.ts: pure functions over the columnar cells. No React here, so
 // this module is unit-tested directly in Node. All thresholding uses nlp >= thr
 // where thr = -log10(cutoff), keeping the cutoff a live UI control.
 

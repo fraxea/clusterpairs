@@ -1,4 +1,4 @@
-// format.ts — pure formatting/naming helpers shared across pages.
+// format.ts: pure formatting/naming helpers shared across pages.
 import type { Stream } from './types';
 
 export function fmtCompact(n: number): string {
@@ -29,7 +29,7 @@ export const pathwaySlug = (name: string): string =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // Names whose mechanical transform doesn't match MSigDB's registered IDs
-// (plus the dataset's "Pperoxisome" typo) — verified against live MSigDB.
+// (plus the dataset's "Pperoxisome" typo). Verified against live MSigDB.
 const MSIGDB_FIX: Record<string, string> = {
   'G2-M Checkpoint': 'G2M_CHECKPOINT',
   'TNF-alpha Signaling via NF-kB': 'TNFA_SIGNALING_VIA_NFKB',
@@ -42,7 +42,7 @@ export const msigdbUrl = (name: string): string =>
   `https://www.gsea-msigdb.org/gsea/msigdb/human/geneset/HALLMARK_${
     MSIGDB_FIX[name] ?? name.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}.html`;
 
-// "not in this stream's output" — hatched so missing data never reads as zero
+// "not in this stream's output": hatched so missing data never reads as zero
 export const HATCH = 'repeating-linear-gradient(45deg,#fafaf8 0 3px,#eceae4 3px 6px)';
 
 /** Patch query params into the current hash route via replaceState (no rerender). */
@@ -60,7 +60,7 @@ export function setHashParams(patch: Record<string, string | null>): void {
 
 /** p-value formatting for stats readouts. */
 export function fmtP(p: number): string {
-  if (!Number.isFinite(p)) return '—';
+  if (!Number.isFinite(p)) return 'n/a';
   if (p < 1e-300) return 'p < 1e-300';
   if (p < 1e-4) return `p = ${p.toExponential(1)}`;
   return `p = ${p.toFixed(4)}`;

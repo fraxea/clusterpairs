@@ -1,4 +1,4 @@
-// Heterogeneity.tsx — subpopulation-selective response. Tahoe's drug clusters
+// Heterogeneity.tsx: subpopulation-selective response. Tahoe's drug clusters
 // are distinct cellular contexts; a drug whose clusters disagree is acting
 // selectively (the substrate of residual disease and resistance in the
 // intratumor-heterogeneity literature). Uniform killers sit at the other end.
@@ -15,8 +15,8 @@ import { downloadCsv } from '../export';
 import { tipBind, useTip } from '../tooltip';
 
 
-// A pathway divergent in more than a third of drugs is "commonly divergent" —
-// proliferation programs split clusters for half the library, so flag them.
+// A pathway divergent in more than a third of drugs is "commonly divergent".
+// Proliferation programs split clusters for half the library, so flag them.
 const COMMON_DIV = 1 / 3;
 
 export function Heterogeneity({ manifest, params }: { manifest: Manifest; params: URLSearchParams }) {
@@ -66,7 +66,7 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
     return () => ro.disconnect();
   }, [hetero]);
 
-  if (err) return <p className="text-sm text-stone-500">hetero.json missing — rerun scripts/build_summary.py. ({err})</p>;
+  if (err) return <p className="text-sm text-stone-500">hetero.json missing. Rerun scripts/build_summary.py. ({err})</p>;
   if (!hetero || !model) return <Spinner label="Loading cluster profiles…" />;
 
   const shown = showAll ? model.ranked : model.ranked.slice(0, 30);
@@ -83,9 +83,9 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
       <p className="mt-1 max-w-3xl text-sm text-stone-500">
         Do all of a drug&rsquo;s cell clusters respond the same way? Dispersion is the mean disagreement
         between per-cluster response profiles (signed streams, q &lt; 0.05). Uniform killers sit low;
-        context-selective drugs — the substrate of resistance — sit high. A{' '}
+        context-selective drugs (the substrate of resistance) sit high. A{' '}
         <span className="rounded bg-amber-100 px-1 text-amber-800">common</span> tag marks pathways that
-        split clusters for over a third of all drugs (the proliferation programs) — cluster differences
+        split clusters for over a third of all drugs, the proliferation programs. Cluster differences
         there are baseline biology, not drug selectivity.
       </p>
 
@@ -104,9 +104,9 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
 
       {/* Same width as the stat tiles above (the page container): fixed-width
           ranking on the left, the heatmap taking the rest and sizing its cells
-          to fit — see the availW measurement. */}
+          to fit (see the availW measurement). */}
       <div className="mt-5 flex flex-wrap gap-4 lg:flex-nowrap">
-        {/* ranking — fixed column so the heatmap gets the rest */}
+        {/* ranking: fixed column so the heatmap gets the rest */}
         <div className="w-full rounded-lg border border-stone-200 bg-white p-4 lg:w-[24rem] lg:shrink-0 lg:grow-0">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold text-stone-800">Drugs by cluster disagreement</h3>
@@ -146,7 +146,7 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
                     className={`w-8 shrink-0 text-right font-mono text-[10px] tabular-nums ${strictDiv.length > 0 ? 'text-stone-700' : 'text-stone-300'}`}
                     title="pathways where clusters disagree in direction (excluding commonly-divergent ones)"
                   >
-                    {strictDiv.length > 0 ? `${strictDiv.length}⇅` : '—'}
+                    {strictDiv.length > 0 ? `${strictDiv.length}⇅` : 'n/a'}
                   </span>
                 </button>
               );
@@ -175,7 +175,7 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
           <div className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white p-5">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="truncate text-sm font-semibold text-stone-800">
-                {nameBySlug.get(sel.slug)} — cluster × pathway response
+                {nameBySlug.get(sel.slug)}: cluster × pathway response
               </h3>
               <a href={`#/drug/${encodeURIComponent(sel.slug)}`} className="shrink-0 text-xs font-medium text-emerald-700 hover:text-emerald-800">
                 drug page →
@@ -206,7 +206,7 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
                         {manifest.pathways[p]}
                       </a>
                       {model.common.has(p) && (
-                        <span className="ml-1.5 rounded bg-amber-100 px-1 text-[9px] text-amber-800" title="divergent in >⅓ of all drugs — cluster baseline biology, not drug selectivity">
+                        <span className="ml-1.5 rounded bg-amber-100 px-1 text-[9px] text-amber-800" title="divergent in >⅓ of all drugs: cluster baseline biology, not drug selectivity">
                           common
                         </span>
                       )}
@@ -245,7 +245,7 @@ export function Heterogeneity({ manifest, params }: { manifest: Manifest; params
             </div>
             <p className="mt-3 text-[11px] text-stone-600">
               Caveat: clusters can differ in baseline composition (cell line / state), so divergence reads as
-              context-dependent response — genotype-selective pharmacology — rather than induced heterogeneity.
+              context-dependent response (genotype-selective pharmacology) rather than induced heterogeneity.
               {' '}{fmtPct(sel.divergent.length / manifest.pathways.length)} of pathways split this drug&rsquo;s clusters.
             </p>
           </div>
